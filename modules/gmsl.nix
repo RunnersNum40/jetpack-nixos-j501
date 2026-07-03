@@ -20,10 +20,7 @@ in
     enable = lib.mkEnableOption "Seeed GMSL2 camera expansion board";
 
     variant = lib.mkOption {
-      type = lib.types.enum [
-        "1x4-3g"
-        "1x4-6g"
-      ];
+      type = lib.types.enum (lib.attrNames variantDtboFile);
       default = "1x4-3g";
       description = ''
         GMSL overlay variant matching the connected camera model:

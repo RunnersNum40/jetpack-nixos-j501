@@ -1,12 +1,13 @@
 { lib, pkgs, ... }:
 {
+  nixpkgs.config.allowUnfree = true;
+  hardware.graphics.enable = true;
+  system.stateVersion = "26.05";
+
   networking = {
     hostName = "j501";
     useDHCP = lib.mkDefault true;
   };
-
-  time.timeZone = "America/Los_Angeles";
-  i18n.defaultLocale = "en_US.UTF-8";
 
   disko.devices.disk.nvme = {
     type = "disk";
@@ -43,27 +44,5 @@
 
   services.openssh = {
     enable = true;
-    settings = {
-      PasswordAuthentication = false;
-      PermitRootLogin = "no";
-    };
   };
-
-  services.tailscale.enable = true;
-
-  users.users.ted = {
-    isNormalUser = true;
-    extraGroups = [ "wheel" ];
-    openssh.authorizedKeys.keys = [
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMI1xeyk9ORCMKWoVmiewtjQKKUNhh3uaV4fynFJoAIw ted@tedtau"
-    ];
-  };
-
-  security.sudo.wheelNeedsPassword = false;
-
-  environment.systemPackages = with pkgs; [
-    git
-    htop
-    nvme-cli
-  ];
 }

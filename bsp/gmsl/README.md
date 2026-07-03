@@ -24,14 +24,19 @@ Changes from the upstream r36.5.0 overlay (which targets the J401 carrier, `JETS
 
 ## Regenerating
 
+Download the upstream DTS from Seeed-Studio/Linux_for_Tegra r36.5.0 and apply two edits:
+
+1. Replace `#include <dt-bindings/tegra234-p3767-0000-common.h>` with inline definitions for
+   `JETSON_COMPATIBLE_P3768`, `GPIO_ACTIVE_HIGH/LOW`, `TEGRA234_MAIN_GPIO*`, and
+   `TEGRA234_AON_GPIO*` (needed because J501 BSP headers are not available at compile time).
+2. Append `(J501 Mini)` to the `overlay-name` string.
+
+Then compile:
+
 ```bash
-curl -s https://raw.githubusercontent.com/Seeed-Studio/Linux_for_Tegra/r36.5.0/source/hardware/nvidia/t23x/nv-public/overlay/tegra234-seeed-gmsl1x4-3g-overlay.dts \
-  | python3 ../../scripts/adapt-gmsl-dts.py - tegra234-camera-seeed-gmsl-1x4-3g.dts
 cpp -nostdinc -undef -x assembler-with-cpp -P tegra234-camera-seeed-gmsl-1x4-3g.dts \
   | dtc -I dts -O dtb -@ -o tegra234-camera-seeed-gmsl-1x4-3g.dtbo
 ```
-
-(The adapt script is kept at `scripts/adapt-gmsl-dts.py` in this repo.)
 
 ## Kernel modules
 
@@ -44,6 +49,5 @@ DTBOs here use that string (corrected from Seeed's upstream `"maxim,max96712"`).
 **MAX96717 serializer** — no driver exists in nvidia-oot, the mainline 6.8 kernel, or
 Seeed's Ubuntu MFI image (`mfi_recomputer-mini-agx-orin-j501x-32g-7.2.0-39.2.0`). The MFI
 ships only 22 kernel modules, none camera-related. Seeed has not published r39 BSP sources.
-This is the hard blocker for camera functionality.
 
 See the comment in `modules/gmsl.nix` for next steps once a MAX96717 driver becomes available.

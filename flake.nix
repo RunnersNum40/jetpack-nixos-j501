@@ -50,11 +50,6 @@
         system.stateVersion = "26.05";
       };
 
-      commonModules = [
-        self.nixosModules.default
-        flashStubs
-      ];
-
       pkgsHost = nixpkgs.legacyPackages.x86_64-linux;
 
       # Deploy wrapper that refuses to run against a booted Tegra system.
@@ -71,7 +66,7 @@
         text = ''
           if [ "$#" -lt 1 ]; then
             echo "usage: deploy-j501 <ip-or-host> [extra nixos-anywhere args...]" >&2
-            echo "deploys board-j501-agx-orin-32gb (override target config via DEPLOY_FLAKE)" >&2
+            echo "deploys j501-agx-orin (override target config via DEPLOY_FLAKE)" >&2
             exit 2
           fi
           target=$1
@@ -99,14 +94,14 @@
               echo "Tegra; the board would reboot into the current system and reconnect would fail" >&2
               echo "with 'Permission denied'." >&2
               echo "  - Reinstall: boot the J501 installer ISO (nix build .#iso-installer-j501), then re-run." >&2
-              echo "  - Update in place: nixos-rebuild switch --flake <flake>#board-j501-agx-orin-32gb --target-host $sshHost --sudo" >&2
+              echo "  - Update in place: nixos-rebuild switch --flake <flake>#j501-agx-orin --target-host $sshHost --sudo" >&2
             else
               echo "refusing to deploy: $sshHost is not a NixOS installer (VARIANT_ID='$variant')." >&2
             fi
             exit 1
           fi
 
-          flakeRef="''${DEPLOY_FLAKE:-${self}#board-j501-agx-orin-32gb}"
+          flakeRef="''${DEPLOY_FLAKE:-${self}#j501-agx-orin}"
           echo "Target is a NixOS installer; deploying $flakeRef ..." >&2
           exec nixos-anywhere --flake "$flakeRef" --target-host "$sshHost" "$@"
         '';
@@ -122,10 +117,12 @@
           ];
         };
 
-      nixosConfigurations.j501-agx-orin-32gb = nixpkgs.lib.nixosSystem {
-        modules = commonModules ++ [
+      nixosConfigurations.flash-j501-agx-orin = nixpkgs.lib.nixosSystem {
+        modules = [
+          self.nixosModules.default
+          flashStubs
           crossConfig
-          ./configurations/j501-agx-orin-32gb.nix
+          ./configurations/j501-agx-orin.nix
         ];
       };
 
@@ -151,29 +148,21 @@
         ];
       };
 
-      nixosConfigurations.board-j501-agx-orin-32gb = nixpkgs.lib.nixosSystem {
+      nixosConfigurations.j501-agx-orin = nixpkgs.lib.nixosSystem {
         modules = [
           self.nixosModules.default
           disko.nixosModules.disko
           crossConfig
-          {
-            nixpkgs.config.allowUnfree = true;
-            hardware.graphics.enable = true;
-            system.stateVersion = "26.05";
-          }
-          ./configurations/j501-agx-orin-32gb.nix
-          ./configurations/board.nix
+          ./configurations/j501-agx-orin.nix
+          ./configurations/board-config.nix
         ];
       };
 
       packages.x86_64-linux = {
         iso-installer-j501 = self.nixosConfigurations.installer-j501.config.system.build.isoImage;
-        flash-j501-agx-orin-32gb =
-          self.nixosConfigurations.j501-agx-orin-32gb.config.system.build.initrdFlashScript;
-        board-j501-agx-orin-32gb-flash =
-          self.nixosConfigurations.board-j501-agx-orin-32gb.config.system.build.initrdFlashScript;
-        board-j501-agx-orin-32gb-toplevel =
-          self.nixosConfigurations.board-j501-agx-orin-32gb.config.system.build.toplevel;
+        flash-j501-agx-orin =
+          self.nixosConfigurations.flash-j501-agx-orin.config.system.build.initrdFlashScript;
+        j501-agx-orin = self.nixosConfigurations.j501-agx-orin.config.system.build.toplevel;
       };
 
       apps.x86_64-linux.deploy-j501 = {
@@ -182,7 +171,7 @@
       };
 
       checks.x86_64-linux = {
-        flash-j501-agx-orin-32gb = self.packages.x86_64-linux.flash-j501-agx-orin-32gb;
+        flash-j501-agx-orin = self.packages.x86_64-linux.flash-j501-agx-orin;
       };
 
       formatter = lib.genAttrs [

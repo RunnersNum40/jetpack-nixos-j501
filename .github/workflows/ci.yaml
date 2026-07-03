@@ -6,29 +6,48 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: DeterminateSystems/nix-installer-action@v13
-
-      - uses: DeterminateSystems/magic-nix-cache-action@v8
-
-      - uses: cachix/cachix-action@v15
-        with:
-          name: ted
-          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - uses: DeterminateSystems/nix-installer-action@v22
 
       - name: Check formatting
         run: nix fmt -- --check .
 
-      - name: Build flash script (j501 AGX Orin 32GB)
-        run: nix build .#flash-j501-agx-orin-32gb --print-build-logs
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        attr:
+          - flash-j501-agx-orin
+          - iso-installer-j501
+          - j501-agx-orin
+    steps:
+      - uses: actions/checkout@v7
 
-      - name: Build flash script (j501 AGX Orin 64GB)
-        run: nix build .#flash-j501-agx-orin-64gb --print-build-logs
+      - uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: true
 
-      - name: Build installer ISO (j501)
-        run: nix build .#iso-installer-j501 --print-build-logs
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - uses: cachix/cachix-action@v17
+        with:
+          name: ted
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build ${{ matrix.attr }}
+        run: nix build .#${{ matrix.attr }} --print-build-logs
