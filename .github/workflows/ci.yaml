@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@v13
+
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
+
+      - uses: cachix/cachix-action@v15
+        with:
+          name: ted
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Check formatting
+        run: nix fmt -- --check .
+
+      - name: Build flash script (j501 AGX Orin 32GB)
+        run: nix build .#flash-j501-agx-orin-32gb --print-build-logs
