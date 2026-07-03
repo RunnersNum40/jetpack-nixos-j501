@@ -38,10 +38,8 @@ cpp -nostdinc -undef -x assembler-with-cpp -P tegra234-camera-seeed-gmsl-1x4-3g.
 Driver status as of L4T r39.2.0 / JetPack 7.2 (investigated 2026-07-03):
 
 **MAX96712 deserializer** — driver present in NVIDIA's `nvidia-oot` (built as part of
-`l4t-oot-modules` in jetpack-nixos). Matches `compatible = "nvidia,max96712"`. The DTBOs
-here use `"maxim,max96712"` (inherited from Seeed's r36.5.0 DTS) which will not bind.
-Requires updating the compatible string in the DTS sources and recompiling before the
-driver will attach.
+`l4t-oot-modules` in jetpack-nixos) and binds to `compatible = "nvidia,max96712"`. The
+DTBOs here use that string (corrected from Seeed's upstream `"maxim,max96712"`).
 
 **MAX96717 serializer** — no driver exists in nvidia-oot, the mainline 6.8 kernel, or
 Seeed's Ubuntu MFI image (`mfi_recomputer-mini-agx-orin-j501x-32g-7.2.0-39.2.0`). The MFI

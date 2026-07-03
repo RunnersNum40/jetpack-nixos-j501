@@ -128,6 +128,22 @@ in
       };
     };
 
+    # Enable the wireless stack for the M.2 Key E slot (PCIe x1 + USB).
+    # Card-specific drivers (iwlwifi, rtw88, etc.) and firmware are left to users.
+    boot.kernelPatches = [
+      {
+        name = "j501-m2-key-e-wireless-stack";
+        patch = null;
+        structuredExtraConfig = with lib.kernel; {
+          CFG80211 = module;
+          MAC80211 = module;
+          RFKILL = module;
+          BT = module;
+          BT_HCIBTUSB = module;
+        };
+      }
+    ];
+
     # Upstream enables nvfancontrol only for devkit carrier boards.
     services.nvfancontrol.enable = lib.mkDefault true;
   };
