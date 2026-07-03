@@ -72,6 +72,28 @@
         ];
       };
 
+      nixosConfigurations.installer-j501 = nixpkgs.lib.nixosSystem {
+        modules = [
+          crossConfig
+          self.nixosModules.default
+          {
+            imports = [
+              "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
+            ];
+            hardware.enableAllHardware = lib.mkForce false;
+            boot.zfs.forceImportRoot = false;
+            nixpkgs.config.allowUnfree = true;
+            hardware.nvidia-jetpack = {
+              enable = true;
+              som = "orin-agx";
+              carrierBoard = "recomputer-j501-mini";
+              majorVersion = "7";
+              configureCuda = false;
+            };
+          }
+        ];
+      };
+
       nixosConfigurations.board-j501-agx-orin-32gb = nixpkgs.lib.nixosSystem {
         modules = [
           self.nixosModules.default
@@ -88,6 +110,7 @@
       };
 
       packages.x86_64-linux = {
+        iso-installer-j501 = self.nixosConfigurations.installer-j501.config.system.build.isoImage;
         flash-j501-agx-orin-32gb =
           self.nixosConfigurations.j501-agx-orin-32gb.config.system.build.initrdFlashScript;
         board-j501-agx-orin-32gb-flash =
