@@ -13,7 +13,7 @@ Binary cache: `https://ted.cachix.org` (public key: `ted.cachix.org-1:nmMqGqqYi7
 | reComputer J501 Mini | AGX Orin 32GB | 7.2 (L4T r39.2) | supported |
 | reComputer J501 Mini | AGX Orin 64GB | 7.2 (L4T r39.2) | supported |
 
-Other reComputer J\*01 boards (J401 Mini, J202, J101) are planned. Contributions welcome.
+Other reComputer J\*01 boards (J401 Mini, J202, J101) are planned pending more hardware. Contributions welcome. If you'd like me to support your board and are willing to provide one for testing, please reach out.
 
 ## Prerequisites
 
