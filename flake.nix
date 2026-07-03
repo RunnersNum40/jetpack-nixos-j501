@@ -54,6 +54,63 @@
         self.nixosModules.default
         flashStubs
       ];
+
+      pkgsHost = nixpkgs.legacyPackages.x86_64-linux;
+
+      # Deploy wrapper that refuses to run against a booted Tegra system.
+      # nixos-anywhere kexecs into a generic aarch64 image unless the target
+      # reports VARIANT_ID=installer; that image cannot boot Tegra, so the board
+      # cold-reboots into the existing OS and reconnect fails. Installs must run
+      # from the J501 installer ISO (which is detected as an installer).
+      deployJ501 = pkgsHost.writeShellApplication {
+        name = "deploy-j501";
+        runtimeInputs = [
+          pkgsHost.nixos-anywhere
+          pkgsHost.openssh
+        ];
+        text = ''
+          if [ "$#" -lt 1 ]; then
+            echo "usage: deploy-j501 <ip-or-host> [extra nixos-anywhere args...]" >&2
+            echo "deploys board-j501-agx-orin-32gb (override target config via DEPLOY_FLAKE)" >&2
+            exit 2
+          fi
+          target=$1
+          shift
+          sshHost="root@$target"
+
+          echo "Probing $sshHost ..." >&2
+          if ! facts=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$sshHost" '
+            variant=$(. /etc/os-release 2>/dev/null; echo "''${VARIANT_ID:-}")
+            compat=$(tr -d "\0" < /proc/device-tree/compatible 2>/dev/null || true)
+            printf "VARIANT=%s\n" "$variant"
+            printf "COMPAT=%s\n" "$compat"
+          '); then
+            echo "error: could not SSH to $sshHost to probe the target" >&2
+            exit 1
+          fi
+
+          variant=$(printf '%s\n' "$facts" | sed -n 's/^VARIANT=//p')
+          compat=$(printf '%s\n' "$facts" | sed -n 's/^COMPAT=//p')
+
+          if [ "$variant" != "installer" ]; then
+            if printf '%s' "$compat" | grep -q "nvidia,tegra"; then
+              echo "refusing to deploy: $sshHost is a running system on Tegra, not the installer." >&2
+              echo "nixos-anywhere would kexec into the generic aarch64 image, which cannot boot" >&2
+              echo "Tegra; the board would reboot into the current system and reconnect would fail" >&2
+              echo "with 'Permission denied'." >&2
+              echo "  - Reinstall: boot the J501 installer ISO (nix build .#iso-installer-j501), then re-run." >&2
+              echo "  - Update in place: nixos-rebuild switch --flake <flake>#board-j501-agx-orin-32gb --target-host $sshHost --sudo" >&2
+            else
+              echo "refusing to deploy: $sshHost is not a NixOS installer (VARIANT_ID='$variant')." >&2
+            fi
+            exit 1
+          fi
+
+          flakeRef="''${DEPLOY_FLAKE:-${self}#board-j501-agx-orin-32gb}"
+          echo "Target is a NixOS installer; deploying $flakeRef ..." >&2
+          exec nixos-anywhere --flake "$flakeRef" --target-host "$sshHost" "$@"
+        '';
+      };
     in
     {
       nixosModules.default =
@@ -117,6 +174,11 @@
           self.nixosConfigurations.board-j501-agx-orin-32gb.config.system.build.initrdFlashScript;
         board-j501-agx-orin-32gb-toplevel =
           self.nixosConfigurations.board-j501-agx-orin-32gb.config.system.build.toplevel;
+      };
+
+      apps.x86_64-linux.deploy-j501 = {
+        type = "app";
+        program = "${deployJ501}/bin/deploy-j501";
       };
 
       checks.x86_64-linux = {

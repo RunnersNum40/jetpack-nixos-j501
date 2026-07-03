@@ -89,19 +89,42 @@ nix build .#iso-installer-j501
 sudo dd if=./result/iso/nixos-*.iso of=/dev/sdX bs=4M oflag=sync status=progress
 ```
 
-Insert the USB drive into the board and boot from it via the UEFI Boot Manager
-(press ESC at the `Press ESC in 1 seconds to skip startup.nsh` prompt). All
-console output goes to the serial port (`/dev/ttyUSB0`, 115200 8N1) — HDMI
-console is not supported on Orin.
+Insert the USB drive into the board and boot from it via the UEFI Boot Manager.
+Once the installer is up, SSH in and deploy.
 
-Once the installer is up, SSH in (empty root password) and deploy with
-`nixos-anywhere`:
+```bash
+nix run .#deploy-j501 -- <board-ip>
+```
+
+Or call `nixos-anywhere` directly against the running installer:
 
 ```bash
 nix run nixpkgs#nixos-anywhere -- \
   --flake .#board-j501-agx-orin-32gb \
   --target-host root@<board-ip>
 ```
+
+### Updating or reinstalling an existing system
+
+> **Warning — do not run `nixos-anywhere` against a Jetson that is already
+> running NixOS/L4T.** When the target is not an installer, `nixos-anywhere`
+> kexecs into the generic `nixos-images` aarch64 kernel, which has no Tegra
+> device tree or firmware init and cannot boot on Tegra234. The board
+> silently cold-reboots back into the existing system, and the install then
+> fails.
+
+- **Update in place**: use `nixos-rebuild`, which does
+  not kexec:
+
+  ```bash
+  nixos-rebuild switch \
+    --flake .#board-j501-agx-orin-32gb \
+    --target-host root@<board-ip> --sudo
+  ```
+
+- **Wipe and reinstall:** re-boot the J501 installer ISO and repeat the
+  `deploy-j501` step above. `disko` repartitions the NVMe from the installer
+  environment (no kexec).
 
 ## Using as a NixOS module
 
