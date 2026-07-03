@@ -1,0 +1,51 @@
+# GMSL DTBO Files
+
+Device tree binary overlays for the Seeed GMSL2 camera expansion board.
+
+## Files
+
+| File | Variant | Camera models |
+|---|---|---|
+| `tegra234-camera-seeed-gmsl-1x4-3g.dtbo` | 3 Gbps | SG3S-ISX031C-GMSL2F |
+| `tegra234-camera-seeed-gmsl-1x4-6g.dtbo` | 6 Gbps | SG2-AR0233C, SG2-IMX390C, SG8S-AR0820C |
+
+The `.dts` source files alongside are the J501 Mini adaptations used to build these DTBOs.
+
+## Provenance
+
+Adapted from `source/hardware/nvidia/t23x/nv-public/overlay/tegra234-seeed-gmsl1x4-*-overlay.dts`
+in [Seeed-Studio/Linux_for_Tegra r36.5.0](https://github.com/Seeed-Studio/Linux_for_Tegra/tree/r36.5.0).
+
+Changes from the upstream r36.5.0 overlay (which targets the J401 carrier, `JETSON_COMPATIBLE_P3768`):
+
+- `compatible` changed to `"nvidia,p3737-0000+p3701-0004"` (J501 Mini DTB root compatible)
+- GPIO and I2C bus unchanged — the J501 Mini's `cam_i2c` alias also points to `i2c@3180000`
+  and the 22-pin CSI connector uses the same GPIO assignments as the J401
+
+## Regenerating
+
+```bash
+curl -s https://raw.githubusercontent.com/Seeed-Studio/Linux_for_Tegra/r36.5.0/source/hardware/nvidia/t23x/nv-public/overlay/tegra234-seeed-gmsl1x4-3g-overlay.dts \
+  | python3 ../../scripts/adapt-gmsl-dts.py - tegra234-camera-seeed-gmsl-1x4-3g.dts
+cpp -nostdinc -undef -x assembler-with-cpp -P tegra234-camera-seeed-gmsl-1x4-3g.dts \
+  | dtc -I dts -O dtb -@ -o tegra234-camera-seeed-gmsl-1x4-3g.dtbo
+```
+
+(The adapt script is kept at `scripts/adapt-gmsl-dts.py` in this repo.)
+
+## Kernel modules
+
+Driver status as of L4T r39.2.0 / JetPack 7.2 (investigated 2026-07-03):
+
+**MAX96712 deserializer** — driver present in NVIDIA's `nvidia-oot` (built as part of
+`l4t-oot-modules` in jetpack-nixos). Matches `compatible = "nvidia,max96712"`. The DTBOs
+here use `"maxim,max96712"` (inherited from Seeed's r36.5.0 DTS) which will not bind.
+Requires updating the compatible string in the DTS sources and recompiling before the
+driver will attach.
+
+**MAX96717 serializer** — no driver exists in nvidia-oot, the mainline 6.8 kernel, or
+Seeed's Ubuntu MFI image (`mfi_recomputer-mini-agx-orin-j501x-32g-7.2.0-39.2.0`). The MFI
+ships only 22 kernel modules, none camera-related. Seeed has not published r39 BSP sources.
+This is the hard blocker for camera functionality.
+
+See the comment in `modules/gmsl.nix` for next steps once a MAX96717 driver becomes available.

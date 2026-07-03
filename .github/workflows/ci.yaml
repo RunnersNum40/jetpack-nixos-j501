@@ -26,3 +26,6 @@ jobs:
 
       - name: Build flash script (j501 AGX Orin 32GB)
         run: nix build .#flash-j501-agx-orin-32gb --print-build-logs
+
+      - name: Build installer ISO (j501)
+        run: nix build .#iso-installer-j501 --print-build-logs

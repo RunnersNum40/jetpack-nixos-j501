@@ -7,6 +7,14 @@
 
 let
   cfg = config.hardware.nvidia-jetpack;
+  j501Cfg = config.hardware.j501;
+
+  baseOverlayDtbs = [
+    "L4TConfiguration.dtbo"
+    "T234SetFmpImageTypeGuid.dtbo"
+    "tegra234-carveouts.dtbo"
+    "tegra-optee.dtbo"
+  ];
 
   j501xConf = pkgs.writeText "recomputer-mini-agx-orin-j501x.conf" ''
     source "''${LDK_DIR}/p3737-0000-p3701-0000.conf";
@@ -38,7 +46,7 @@ let
     MB2_BCT="tegra234-mb2-bct-misc-p3701-seeed-no-cvb-eeprom.dts";
     DTB_FILE=tegra234-j501x-0000+p3701-0004-recomputer-mini.dtb;
     TBCDTB_FILE="''${DTB_FILE}";
-    OVERLAY_DTB_FILE="L4TConfiguration.dtbo,T234SetFmpImageTypeGuid.dtbo,tegra234-carveouts.dtbo,tegra-optee.dtbo";
+    OVERLAY_DTB_FILE="${lib.concatStringsSep "," (baseOverlayDtbs ++ j501Cfg.extraOverlayDtbFiles)}";
   '';
 
   # J501 Mini has no CVB EEPROM; MB2 fails if cvb_eeprom_read_size != 0.
@@ -63,6 +71,12 @@ in
   # functor.binOp = unique (a ++ b); no fork of the upstream module needed.
   options.hardware.nvidia-jetpack.carrierBoard = lib.mkOption {
     type = lib.types.enum [ "recomputer-j501-mini" ];
+  };
+
+  options.hardware.j501.extraOverlayDtbFiles = lib.mkOption {
+    type = lib.types.listOf lib.types.str;
+    default = [ ];
+    description = "Additional DTBO filenames appended to OVERLAY_DTB_FILE when building the J501 flash script.";
   };
 
   config = lib.mkIf (cfg.enable && cfg.carrierBoard == "recomputer-j501-mini") {

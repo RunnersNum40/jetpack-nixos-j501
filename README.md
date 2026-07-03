@@ -81,8 +81,27 @@ first boot.
 
 ### 4. Install NixOS on NVMe
 
-After the QSPI flash completes, the board boots into UEFI. Install NixOS onto
-the NVMe SSD using a NixOS installer ISO or by booting a live system over USB.
+After the QSPI flash completes, the board boots into UEFI. Build the J501
+installer ISO and write it to a USB drive:
+
+```bash
+nix build .#iso-installer-j501
+sudo dd if=./result/iso/nixos-*.iso of=/dev/sdX bs=4M oflag=sync status=progress
+```
+
+Insert the USB drive into the board and boot from it via the UEFI Boot Manager
+(press ESC at the `Press ESC in 1 seconds to skip startup.nsh` prompt). All
+console output goes to the serial port (`/dev/ttyUSB0`, 115200 8N1) — HDMI
+console is not supported on Orin.
+
+Once the installer is up, SSH in (empty root password) and deploy with
+`nixos-anywhere`:
+
+```bash
+nix run nixpkgs#nixos-anywhere -- \
+  --flake .#board-j501-agx-orin-32gb \
+  --target-host root@<board-ip>
+```
 
 ## Using as a NixOS module
 
