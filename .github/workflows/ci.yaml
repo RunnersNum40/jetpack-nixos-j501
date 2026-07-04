@@ -3,8 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -51,3 +49,27 @@ jobs:
 
       - name: Build ${{ matrix.attr }}
         run: nix build .#${{ matrix.attr }} --print-build-logs
+
+  build-native:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          swap-storage: true
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - uses: cachix/cachix-action@v17
+        with:
+          name: ted
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Build native kernel + CUDA/L4T closure
+        run: nix build .#packages.aarch64-linux.cache-warm-native --print-build-logs

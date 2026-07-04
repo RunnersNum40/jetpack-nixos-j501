@@ -38,8 +38,13 @@
         };
       };
 
-      # Stub settings required for Nix evaluation of the flash-script NixOS config.
-      # These are not used at runtime — the flash script only needs the firmware derivations.
+      nativeConfig = {
+        nixpkgs = {
+          buildPlatform.system = "aarch64-linux";
+          hostPlatform.system = "aarch64-linux";
+        };
+      };
+
       flashStubs = {
         nixpkgs.config.allowUnfree = true;
         hardware.graphics.enable = true;
@@ -158,12 +163,57 @@
         ];
       };
 
+      nixosConfigurations.native-j501-agx-orin = nixpkgs.lib.nixosSystem {
+        modules = [
+          self.nixosModules.default
+          nativeConfig
+          {
+            nixpkgs.config.allowUnfree = true;
+            hardware.graphics.enable = true;
+            hardware.nvidia-jetpack = {
+              enable = true;
+              som = "orin-agx";
+              carrierBoard = "recomputer-j501-mini";
+              majorVersion = "7";
+              configureCuda = true;
+            };
+            # Stubs so the config evaluates without a real disk/bootloader.
+            fileSystems."/".fsType = "tmpfs";
+            boot.loader.grub.enable = false;
+            boot.loader.systemd-boot.enable = false;
+            boot.zfs.forceImportRoot = false;
+            system.stateVersion = "26.05";
+          }
+        ];
+      };
+
       packages.x86_64-linux = {
         iso-installer-j501 = self.nixosConfigurations.installer-j501.config.system.build.isoImage;
         flash-j501-agx-orin =
           self.nixosConfigurations.flash-j501-agx-orin.config.system.build.initrdFlashScript;
         j501-agx-orin = self.nixosConfigurations.j501-agx-orin.config.system.build.toplevel;
       };
+
+      packages.aarch64-linux =
+        let
+          native = self.nixosConfigurations.native-j501-agx-orin;
+          npkgs = native.pkgs;
+          jp = npkgs.nvidia-jetpack;
+          cuda = jp.cudaPackages;
+        in
+        {
+          cache-warm-native = npkgs.linkFarmFromDrvs "cache-warm-native" [
+            native.config.boot.kernelPackages.kernel
+            cuda.cudatoolkit
+            cuda.cudnn
+            cuda.tensorrt
+            jp.l4t-cuda
+            jp.l4t-core
+            jp.l4t-multimedia
+            jp.l4t-3d-core
+            jp.l4t-camera
+          ];
+        };
 
       apps.x86_64-linux.deploy-j501 = {
         type = "app";
