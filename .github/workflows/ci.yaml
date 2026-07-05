@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+  pull_request:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,9 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-
       - uses: DeterminateSystems/nix-installer-action@v22
-
       - name: Check formatting
         run: nix fmt -- --check .
 
@@ -30,7 +29,6 @@ jobs:
           - j501-agx-orin
     steps:
       - uses: actions/checkout@v7
-
       - uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
         with:
           tool-cache: true
@@ -39,14 +37,11 @@ jobs:
           haskell: true
           large-packages: false
           swap-storage: true
-
       - uses: DeterminateSystems/nix-installer-action@v22
-
       - uses: cachix/cachix-action@v17
         with:
           name: ted
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
       - name: Build ${{ matrix.attr }}
         run: nix build .#${{ matrix.attr }} --print-build-logs
 
@@ -54,7 +49,6 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v7
-
       - uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
         with:
           tool-cache: true
@@ -63,13 +57,10 @@ jobs:
           haskell: true
           large-packages: false
           swap-storage: true
-
       - uses: DeterminateSystems/nix-installer-action@v22
-
       - uses: cachix/cachix-action@v17
         with:
           name: ted
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
-
       - name: Build native kernel + CUDA/L4T closure
         run: nix build .#packages.aarch64-linux.cache-warm-native --print-build-logs
