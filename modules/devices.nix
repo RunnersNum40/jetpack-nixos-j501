@@ -9,6 +9,7 @@ let
   cfg = config.hardware.nvidia-jetpack;
   j501Cfg = config.hardware.j501;
 
+  # Standard L4T overlays required by the sourced upstream devkit conf (p3737-0000-p3701-0000.conf).
   baseOverlayDtbs = [
     "L4TConfiguration.dtbo"
     "T234SetFmpImageTypeGuid.dtbo"
@@ -90,6 +91,9 @@ in
         message = "recomputer-j501-mini requires hardware.nvidia-jetpack.majorVersion = \"7\" (JetPack 7 / L4T r39)";
       }
     ];
+
+    nixpkgs.config.allowUnfree = true;
+    hardware.graphics.enable = true;
 
     hardware.nvidia-jetpack = {
       firmware.variants = [

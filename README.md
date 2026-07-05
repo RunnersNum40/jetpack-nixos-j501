@@ -17,7 +17,7 @@ A single build (`flash-j501-agx-orin` / `j501-agx-orin`) covers both the
 32GB (SKU 0004) and 64GB (SKU 0005) modules: the flash script bundles both
 firmware variants and auto-detects the connected module's SKU at flash time.
 
-Other reComputer J\*01 boards (J401 Mini, J202, J101) are planned pending more hardware. Contributions welcome. If you'd like me to support your board and are willing to provide one for testing, please reach out.
+Contributions welcome for other reComputer J\*01 boards.
 
 ## Prerequisites
 
@@ -124,6 +124,17 @@ jetpack-nixos-j501 = {
 };
 ```
 
+Enable the binary cache to avoid rebuilding large packages:
+
+```nix
+nix.settings = {
+  substituters = [ "https://ted.cachix.org" ];
+  trusted-public-keys = [
+    "ted.cachix.org-1:nmMqGqqYi74uo0sMW7Gt0BY2qvaaFG6lOfibBpcxhFw="
+  ];
+};
+```
+
 Import the module in your NixOS configuration:
 
 ```nix
@@ -134,17 +145,6 @@ hardware.nvidia-jetpack = {
   som = "orin-agx";
   carrierBoard = "recomputer-j501-mini";
   majorVersion = "7";
-};
-```
-
-Enable the binary cache to avoid rebuilding large packages:
-
-```nix
-nix.settings = {
-  substituters = [ "https://ted.cachix.org" ];
-  trusted-public-keys = [
-    "ted.cachix.org-1:nmMqGqqYi74uo0sMW7Gt0BY2qvaaFG6lOfibBpcxhFw="
-  ];
 };
 ```
 
@@ -234,9 +234,6 @@ existing bootloader. This is not yet implemented.
 ```bash
 # Format all Nix files
 nix fmt
-
-# Evaluate the flash script derivation (does not build)
-nix eval .#packages.x86_64-linux.flash-j501-agx-orin
 
 # Build
 nix build .#flash-j501-agx-orin --print-build-logs

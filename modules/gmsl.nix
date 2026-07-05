@@ -28,6 +28,12 @@ in
         - "1x4-6g": SG2-AR0233C, SG2-IMX390C, SG8S-AR0820C (6 Gbps link rate)
       '';
     };
+
+    installTools = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Install v4l-utils for camera diagnostics.";
+    };
   };
 
   # dtboSrc inside mkIf: path only evaluated when GMSL is enabled, so missing
@@ -44,21 +50,9 @@ in
         cp ${dtboSrc} kernel/dtb/${dtboName}
       '';
 
-      environment.systemPackages = [ pkgs.v4l-utils ];
+      environment.systemPackages = lib.mkIf cfg.installTools [ pkgs.v4l-utils ];
 
-      # Kernel driver status for L4T r39 (jetpack-nixos nvidia-oot rev 487ee5c0):
-      #
-      # MAX96712 deserializer: driver present in nvidia-oot (drivers/media/i2c/max96712.c),
-      #   built as part of l4t-oot-modules. Binds to compatible = "nvidia,max96712" which
-      #   matches the DTBOs here.
-      #
-      # MAX96717 serializer: no driver in nvidia-oot, mainline kernel-noble (6.8), or
-      #   any public Seeed BSP source. This is the hard blocker — cameras cannot function
-      #   without it. Seeed has not published r39 BSP sources with a MAX96717 driver.
-      #
-      # Once a MAX96717 driver is available (from Seeed or ported from max9295.c):
-      #   1. Package the MAX96717 driver as an extraModulePackage
-      #   2. Add: boot.kernelModules = [ "max96712" "max96717" ];
+      # MAX96717 serializer driver is a hard blocker; see bsp/gmsl/README.md for current status.
     }
   );
 }

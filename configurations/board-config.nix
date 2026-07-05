@@ -1,7 +1,5 @@
-{ lib, pkgs, ... }:
+{ lib, ... }:
 {
-  nixpkgs.config.allowUnfree = true;
-  hardware.graphics.enable = true;
   system.stateVersion = "26.05";
 
   networking = {
@@ -42,7 +40,5 @@
     loader.efi.canTouchEfiVariables = false;
   };
 
-  services.openssh = {
-    enable = true;
-  };
+  services.openssh.enable = true;
 }

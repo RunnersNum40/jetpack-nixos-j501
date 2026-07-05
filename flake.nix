@@ -10,10 +10,12 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
+
     jetpack-nixos = {
       url = "github:anduril/jetpack-nixos";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     disko = {
       url = "github:nix-community/disko/latest";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -45,16 +47,6 @@
         };
       };
 
-      flashStubs = {
-        nixpkgs.config.allowUnfree = true;
-        hardware.graphics.enable = true;
-        fileSystems."/".fsType = "tmpfs";
-        boot.loader.grub.enable = false;
-        boot.loader.systemd-boot.enable = false;
-        boot.zfs.forceImportRoot = false;
-        system.stateVersion = "26.05";
-      };
-
       pkgsHost = nixpkgs.legacyPackages.x86_64-linux;
 
       # Deploy wrapper that refuses to run against a booted Tegra system.
@@ -74,11 +66,13 @@
             echo "deploys j501-agx-orin (override target config via DEPLOY_FLAKE)" >&2
             exit 2
           fi
+
           target=$1
           shift
-          sshHost="root@$target"
 
+          sshHost="root@$target"
           echo "Probing $sshHost ..." >&2
+
           if ! facts=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 "$sshHost" '
             variant=$(. /etc/os-release 2>/dev/null; echo "''${VARIANT_ID:-}")
             compat=$(tr -d "\0" < /proc/device-tree/compatible 2>/dev/null || true)
@@ -98,8 +92,8 @@
               echo "nixos-anywhere would kexec into the generic aarch64 image, which cannot boot" >&2
               echo "Tegra; the board would reboot into the current system and reconnect would fail" >&2
               echo "with 'Permission denied'." >&2
-              echo "  - Reinstall: boot the J501 installer ISO (nix build .#iso-installer-j501), then re-run." >&2
-              echo "  - Update in place: nixos-rebuild switch --flake <flake>#j501-agx-orin --target-host $sshHost --sudo" >&2
+              echo " - Reinstall: boot the J501 installer ISO (nix build .#iso-installer-j501), then re-run." >&2
+              echo " - Update in place: nixos-rebuild switch --flake <flake>#j501-agx-orin --target-host $sshHost --sudo" >&2
             else
               echo "refusing to deploy: $sshHost is not a NixOS installer (VARIANT_ID='$variant')." >&2
             fi
@@ -125,9 +119,15 @@
       nixosConfigurations.flash-j501-agx-orin = nixpkgs.lib.nixosSystem {
         modules = [
           self.nixosModules.default
-          flashStubs
           crossConfig
           ./configurations/j501-agx-orin.nix
+          {
+            fileSystems."/".fsType = "tmpfs";
+            boot.loader.grub.enable = false;
+            boot.loader.systemd-boot.enable = false;
+            boot.zfs.forceImportRoot = false;
+            system.stateVersion = "26.05";
+          }
         ];
       };
 
@@ -135,20 +135,13 @@
         modules = [
           crossConfig
           self.nixosModules.default
+          ./configurations/j501-agx-orin.nix
           {
             imports = [
               "${nixpkgs}/nixos/modules/installer/cd-dvd/installation-cd-minimal.nix"
             ];
             hardware.enableAllHardware = lib.mkForce false;
             boot.zfs.forceImportRoot = false;
-            nixpkgs.config.allowUnfree = true;
-            hardware.nvidia-jetpack = {
-              enable = true;
-              som = "orin-agx";
-              carrierBoard = "recomputer-j501-mini";
-              majorVersion = "7";
-              configureCuda = false;
-            };
           }
         ];
       };
@@ -168,8 +161,6 @@
           self.nixosModules.default
           nativeConfig
           {
-            nixpkgs.config.allowUnfree = true;
-            hardware.graphics.enable = true;
             hardware.nvidia-jetpack = {
               enable = true;
               som = "orin-agx";
@@ -222,6 +213,8 @@
 
       checks.x86_64-linux = {
         flash-j501-agx-orin = self.packages.x86_64-linux.flash-j501-agx-orin;
+        iso-installer-j501 = self.packages.x86_64-linux.iso-installer-j501;
+        j501-agx-orin = self.packages.x86_64-linux.j501-agx-orin;
       };
 
       formatter = lib.genAttrs [
