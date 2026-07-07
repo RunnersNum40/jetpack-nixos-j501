@@ -1,0 +1,110 @@
+--- a/drivers/tty/serial/serial-tegra.c	2026-07-09 17:32:48.436473442 -0700
++++ b/drivers/tty/serial/serial-tegra.c	2026-07-09 20:46:04.186367752 -0700
+@@ -16,6 +16,8 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/dmapool.h>
+ #include <linux/err.h>
++#include <linux/gpio/consumer.h>
++#include <linux/hrtimer.h>
+ #include <linux/io.h>
+ #include <linux/irq.h>
+ #include <linux/module.h>
+@@ -146,6 +148,10 @@
+ 	bool					use_rx_pio;
+ 	bool					use_tx_pio;
+ 	bool					rx_dma_active;
++
++	/* RS-485 half-duplex direction (DE), Seeed serial-tegra approach */
++	struct gpio_desc			*rs485_de_gpio;
++	struct hrtimer				rs485_de_timer;
+ };
+ 
+ static void tegra_uart_start_next_tx(struct tegra_uart_port *tup);
+@@ -159,6 +165,36 @@
+ 	return readl(tup->uport.membase + (reg << tup->uport.regshift));
+ }
+ 
++/*
++ * RS-485 DE (direction) control, matching Seeed's serial-tegra driver: the DT
++ * rs485-de-gpios stays ACTIVE_LOW, and the driver inverts (assert/transmit =
++ * logical 0 -> physical high; deassert/receive = logical 1 -> physical low).
++ */
++static inline void tegra_uart_rs485_de_assert(struct tegra_uart_port *tup)
++{
++	if (tup->rs485_de_gpio)
++		gpiod_set_value(tup->rs485_de_gpio, 0);
++}
++
++static inline void tegra_uart_rs485_de_deassert(struct tegra_uart_port *tup)
++{
++	if (tup->rs485_de_gpio)
++		gpiod_set_value(tup->rs485_de_gpio, 1);
++}
++
++static enum hrtimer_restart tegra_uart_rs485_de_expire(struct hrtimer *t)
++{
++	struct tegra_uart_port *tup =
++		container_of(t, struct tegra_uart_port, rs485_de_timer);
++
++	if (tegra_uart_read(tup, UART_LSR) & UART_LSR_TEMT) {
++		tegra_uart_rs485_de_deassert(tup);
++		return HRTIMER_NORESTART;
++	}
++	hrtimer_forward_now(t, ns_to_ktime(10000));
++	return HRTIMER_RESTART;
++}
++
+ static inline void tegra_uart_write(struct tegra_uart_port *tup, unsigned val,
+ 	unsigned long reg)
+ {
+@@ -528,6 +564,9 @@
+ 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+ 		uart_write_wakeup(&tup->uport);
+ 	tegra_uart_start_next_tx(tup);
++	if (tup->rs485_de_gpio && uart_circ_empty(xmit))
++		hrtimer_start(&tup->rs485_de_timer, ns_to_ktime(10000),
++			      HRTIMER_MODE_REL);
+ 	uart_port_unlock_irqrestore(&tup->uport, flags);
+ }
+ 
+@@ -588,8 +627,10 @@
+ 	struct tegra_uart_port *tup = to_tegra_uport(u);
+ 	struct circ_buf *xmit = &u->state->xmit;
+ 
+-	if (!uart_circ_empty(xmit) && !tup->tx_in_progress)
++	if (!uart_circ_empty(xmit) && !tup->tx_in_progress) {
++		tegra_uart_rs485_de_assert(tup);
+ 		tegra_uart_start_next_tx(tup);
++	}
+ }
+ 
+ static unsigned int tegra_uart_tx_empty(struct uart_port *u)
+@@ -635,6 +676,9 @@
+ 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+ 		uart_write_wakeup(&tup->uport);
+ 	tegra_uart_start_next_tx(tup);
++	if (tup->rs485_de_gpio && uart_circ_empty(xmit))
++		hrtimer_start(&tup->rs485_de_timer, ns_to_ktime(10000),
++			      HRTIMER_MODE_REL);
+ }
+ 
+ static void tegra_uart_handle_rx_pio(struct tegra_uart_port *tup,
+@@ -1603,6 +1647,18 @@
+ 		return ret;
+ 	u->irq = ret;
+ 	u->regshift = 2;
++
++	tup->rs485_de_gpio = devm_gpiod_get_optional(&pdev->dev, "rs485-de",
++						     GPIOD_OUT_HIGH);
++	if (IS_ERR(tup->rs485_de_gpio))
++		return dev_err_probe(&pdev->dev, PTR_ERR(tup->rs485_de_gpio),
++				     "Couldn't get rs485-de gpio\n");
++	if (tup->rs485_de_gpio) {
++		hrtimer_init(&tup->rs485_de_timer, CLOCK_MONOTONIC,
++			     HRTIMER_MODE_REL);
++		tup->rs485_de_timer.function = tegra_uart_rs485_de_expire;
++	}
++
+ 	ret = uart_add_one_port(&tegra_uart_driver, u);
+ 	if (ret < 0) {
+ 		dev_err(&pdev->dev, "Failed to add uart port, err %d\n", ret);

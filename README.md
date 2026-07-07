@@ -163,7 +163,7 @@ for wiring diagrams and per-interface examples.
 | CAN0 / CAN1 | `can0`, `can1` | yes | CAN-FD; `mttcan`; termination on gpiochip1 lines 4/7 |
 | GPI / GPO | `gpiochip0` (libgpiod: `gpioget`/`gpioset`) | yes | 6-pin header defaults to GPO |
 | UART (6-pin) | `/dev/ttyTHS1` | no | shares the GPO header; needs MB1 pinmux change (see below) |
-| RS485 | `/dev/ttyTHS4` | yes | enable transceiver via GPIO before use |
+| RS485 | `/dev/ttyTHS4` | yes | enable transceiver via GPIO before use (Maximum baud rate of 1 Mbps in my testing) |
 | I2S | ALSA card `APE` | yes (hardware) | route with `jetson-io` / `amixer` |
 | RTC | `/sys/class/rtc/rtc0` (PMIC), `rtc1` (Tegra) | yes | needs coin-cell battery |
 | M.2 Key E | PCIe + USB | card-dependent | Wi-Fi/BT — see below |

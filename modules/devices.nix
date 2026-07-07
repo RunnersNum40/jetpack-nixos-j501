@@ -25,6 +25,7 @@ let
         if [ "''${board_sku}" = "0004" ]; then
             PMIC_CONFIG="tegra234-mb1-bct-pmic-p3701-0005.dts";
             DTB_FILE=tegra234-j501x-0000+p3701-0004-recomputer-mini.dtb;
+            BPFDTB_FILE="tegra234-bpmp-3701-0004-3737-0000-super.dtb";
         elif [ "''${board_sku}" = "0005" ]; then
             PMIC_CONFIG="tegra234-mb1-bct-pmic-p3701-0005.dts";
             DTB_FILE=tegra234-j501x-0000+p3701-0005-recomputer-mini.dtb;
@@ -138,7 +139,6 @@ in
       };
     };
 
-    # Enable the wireless stack for the M.2 Key E slot (PCIe x1 + USB).
     boot.kernelPatches = [
       {
         name = "j501-m2-key-e-wireless-stack";
@@ -150,6 +150,10 @@ in
           BT = module;
           BT_HCIBTUSB = module;
         };
+      }
+      {
+        name = "serial-tegra-rs485-de";
+        patch = ../bsp/rs485/serial-tegra-rs485.patch;
       }
     ];
 
