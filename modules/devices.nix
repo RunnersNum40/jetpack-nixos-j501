@@ -42,8 +42,8 @@ let
     }
 
     ODMDATA="gbe-uphy-config-22,nvhs-uphy-config-0,hsio-uphy-config-0,gbe0-enable-10g,hsstp-lane-map-3";
-    PINMUX_CONFIG="tegra234-mb1-bct-pinmux-p3701-0000-a04.dtsi";
-    PMC_CONFIG="tegra234-mb1-bct-padvoltage-p3701-0000-a04.dtsi";
+    PINMUX_CONFIG="recomputer-mini-agx-orin-j501x-pinmux.dtsi";
+    PMC_CONFIG="recomputer-mini-agx-orin-j501x-padvoltage-default.dtsi";
     MB2_BCT="tegra234-mb2-bct-misc-p3701-seeed-no-cvb-eeprom.dts";
     DTB_FILE=tegra234-j501x-0000+p3701-0004-recomputer-mini.dtb;
     TBCDTB_FILE="''${DTB_FILE}";
@@ -66,10 +66,13 @@ let
   # DTBs from Seeed MFI; not published in any public BSP repo.
   j501xDtb32gb = ../bsp/tegra234-j501x-0000+p3701-0004-recomputer-mini.dtb;
   j501xDtb64gb = ../bsp/tegra234-j501x-0000+p3701-0005-recomputer-mini.dtb;
+
+  # Seeed J501 Mini MB1 pinmux/padvoltage (from Seeed Linux_for_Tegra r36.5.0).
+  j501Pinmux = ../bsp/pinmux/recomputer-mini-agx-orin-j501x-pinmux.dtsi;
+  j501PinmuxGpio = ../bsp/pinmux/recomputer-mini-agx-orin-j501x-gpio-default.dtsi;
+  j501Padvoltage = ../bsp/pinmux/recomputer-mini-agx-orin-j501x-padvoltage-default.dtsi;
 in
 {
-  # Re-declaring a types.enum option extends allowed values via
-  # functor.binOp = unique (a ++ b); no fork of the upstream module needed.
   options.hardware.nvidia-jetpack.carrierBoard = lib.mkOption {
     type = lib.types.enum [ "recomputer-j501-mini" ];
   };
@@ -123,6 +126,9 @@ in
         postPatch = ''
           cp ${j501xConf} recomputer-mini-agx-orin-j501x.conf
           cp ${mb2BctNoCvb} bootloader/generic/BCT/tegra234-mb2-bct-misc-p3701-seeed-no-cvb-eeprom.dts
+          cp ${j501Pinmux} bootloader/generic/BCT/recomputer-mini-agx-orin-j501x-pinmux.dtsi
+          cp ${j501PinmuxGpio} bootloader/generic/BCT/recomputer-mini-agx-orin-j501x-gpio-default.dtsi
+          cp ${j501Padvoltage} bootloader/generic/BCT/recomputer-mini-agx-orin-j501x-padvoltage-default.dtsi
           cp ${j501xDtb32gb} bootloader/tegra234-j501x-0000+p3701-0004-recomputer-mini.dtb
           cp ${j501xDtb64gb} bootloader/tegra234-j501x-0000+p3701-0005-recomputer-mini.dtb
           mkdir -p kernel/dtb
@@ -133,7 +139,6 @@ in
     };
 
     # Enable the wireless stack for the M.2 Key E slot (PCIe x1 + USB).
-    # Card-specific drivers (iwlwifi, rtw88, etc.) and firmware are left to users.
     boot.kernelPatches = [
       {
         name = "j501-m2-key-e-wireless-stack";
@@ -148,7 +153,6 @@ in
       }
     ];
 
-    # Upstream enables nvfancontrol only for devkit carrier boards.
     services.nvfancontrol.enable = lib.mkDefault true;
   };
 }
