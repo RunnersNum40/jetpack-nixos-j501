@@ -7,17 +7,21 @@
 //   gpioset 0 126=0  -> RS485 transceiver enable  (gpiochip0 line 126 = PY.04)
 //   gpioset 1 9=0    -> 120R termination enable    (gpiochip1 line 9   = PBB.01)
 //
-// IMPORTANT: a gpio-hog's `gpios` cell is the DT specifier
-// TEGRA234_{MAIN,AON}_GPIO(port, pin) = port_index*8 + pin — a SPARSE scheme
-// (8 slots per port regardless of populated pins). This is NOT the dense
-// libgpiod/`gpioset` line offset. They diverge on the main controller:
-//   PY.04  = MAIN(Y=23, 4) = 188   (libgpiod line 126)
-//   PBB.01 = AON (BB=1, 1) = 9     (libgpiod line 9 — aon early ports are full)
-// Port indices verified against working DT refs: MAIN(H,6)=62=PH.06 (GMSL reset),
-// MAIN(Q,6)=126=PQ.06 (observed when this hog wrongly used <126>).
+// A hog's `gpios` cell is the DT specifier TEGRA234_{MAIN,AON}_GPIO(port,pin) =
+// port_index*8 + pin, using the port indices from dt-bindings/gpio/tegra234-gpio.h
+// (the SAME table the driver's of_xlate uses). The MAIN port table is sparse in
+// letters: ... R=16, X=17, Y=18, Z=19 ... (S..W and AA/AB are not gpio ports),
+// so the DT cell is NOT the dense libgpiod/`gpioset` line number.
+//   PY.04  = MAIN(Y=18, 4) = 148   (libgpiod line 126)
+//   PBB.01 = AON (BB=1,  1) = 9     (libgpiod line 9)
+// Verified against the same header: MAIN(H,6)=62=PH.06, MAIN(Q,6)=126=PQ.06.
 //
-// Fragments target the controllers by path (not &phandle): the Jetson
-// bootloader that applies OVERLAY_DTB_FILE does not resolve __fixups__.
+// Fragments target the controllers by path (not &phandle): the Jetson bootloader
+// that applies OVERLAY_DTB_FILE does not resolve __fixups__.
+//
+// Delivery: this ships in the NixOS closure (hardware.j501.rs485.enable) and is
+// applied by the firmware capsule on OTA — NOT by recovery-mode reflash, which
+// firmware.autoUpdate reverts to match the deployed closure.
 
 /dts-v1/;
 /plugin/;
@@ -30,7 +34,7 @@
 		__overlay__ {
 			rs485-enable-hog {
 				gpio-hog;
-				gpios = <188 0>; /* MAIN(Y,4)=PY.04; 0=ACTIVE_HIGH, output-low = phys 0 */
+				gpios = <148 0>; /* MAIN(Y,4)=PY.04; 0=ACTIVE_HIGH, output-low = phys 0 */
 				output-low;
 				line-name = "rs485-enable";
 			};
