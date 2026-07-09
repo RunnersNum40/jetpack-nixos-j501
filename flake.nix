@@ -185,9 +185,16 @@
         j501-agx-orin = self.nixosConfigurations.j501-agx-orin.config.system.build.toplevel;
       };
 
+      nixosConfigurations.native-j501-agx-orin-rt =
+        self.nixosConfigurations.native-j501-agx-orin.extendModules
+          {
+            modules = [ { hardware.j501.fullPreempt.enable = true; } ];
+          };
+
       packages.aarch64-linux =
         let
           native = self.nixosConfigurations.native-j501-agx-orin;
+          native-rt = self.nixosConfigurations.native-j501-agx-orin-rt;
           npkgs = native.pkgs;
           jp = npkgs.nvidia-jetpack;
           cuda = jp.cudaPackages;
@@ -195,6 +202,7 @@
         {
           cache-warm-native = npkgs.linkFarmFromDrvs "cache-warm-native" [
             native.config.boot.kernelPackages.kernel
+            native-rt.config.boot.kernelPackages.kernel
             cuda.cudatoolkit
             cuda.cudnn
             cuda.tensorrt

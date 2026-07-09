@@ -139,7 +139,6 @@ in
       };
     };
 
-    # Enable the wireless stack for the M.2 Key E slot (PCIe x1 + USB).
     boot.kernelPatches = [
       {
         name = "j501-m2-key-e-wireless-stack";
@@ -151,6 +150,10 @@ in
           BT = module;
           BT_HCIBTUSB = module;
         };
+      }
+      {
+        name = "serial-tegra-rs485-de";
+        patch = ../bsp/rs485/serial-tegra-rs485.patch;
       }
     ];
 

@@ -27,8 +27,11 @@
 /plugin/;
 
 / {
-	overlay-name = "J501 Mini RS485 enable + termination (gpio hogs)";
+	overlay-name = "J501 Mini RS485 enable";
 
+	// Only the transceiver-enable is hogged. The 120R termination (PBB.01 /
+	// aon gpio line 9) is intentionally NOT hogged so it can be toggled from
+	// userspace for bring-up experiments (float at boot).
 	fragment@0 {
 		target-path = "/bus@0/gpio@2200000";
 		__overlay__ {
@@ -41,15 +44,9 @@
 		};
 	};
 
-	fragment@1 {
-		target-path = "/bus@0/gpio@c2f0000";
-		__overlay__ {
-			rs485-term-hog {
-				gpio-hog;
-				gpios = <9 0>; /* AON(BB,1)=PBB.01; 0=ACTIVE_HIGH, output-low = phys 0 */
-				output-low;
-				line-name = "rs485-term";
-			};
-		};
-	};
+	// NOTE: the DE line itself (PY.07 / rs485-de-gpios) is left at the base
+	// recomputer DTB's stock definition (ACTIVE_LOW). The patched serial-tegra
+	// driver inverts in software (assert = gpiod 0 -> phys high = transmit),
+	// matching Seeed's proven driver, and always manages DE when the rs485-de
+	// gpio is present, so no serial-node override or boot-time-enable is needed.
 };
