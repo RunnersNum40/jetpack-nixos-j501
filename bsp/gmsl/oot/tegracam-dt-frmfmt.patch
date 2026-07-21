@@ -1,0 +1,90 @@
+diff -ruN a/nvidia-oot/drivers/media/platform/tegra/camera/camera_common.c b/nvidia-oot/drivers/media/platform/tegra/camera/camera_common.c
+--- a/nvidia-oot/drivers/media/platform/tegra/camera/camera_common.c	2026-07-17 15:22:42.617754519 -0700
++++ b/nvidia-oot/drivers/media/platform/tegra/camera/camera_common.c	2026-07-17 15:22:42.646718525 -0700
+@@ -1159,6 +1159,53 @@
+ }
+ EXPORT_SYMBOL_GPL(camera_common_cleanup);
+ 
++/*
++ * Build the frmfmt table from DT-parsed sensor modes for drivers that ship no
++ * static frmfmt_table (e.g. the generic DT-driven nv_cam). r39 keeps the frame
++ * rate in control_properties (not the sensor mode), so derive one discrete rate
++ * per mode; cam_g_frame_interval / enum_frameintervals dereference framerates[0].
++ */
++int camera_common_fill_fmts(struct camera_common_data *s_data)
++{
++	struct camera_common_frmfmt *frmfmt;
++	struct device *dev = s_data->dev;
++	unsigned int i;
++
++	s_data->numfmts = s_data->sensor_props.num_modes;
++
++	frmfmt = devm_kcalloc(dev, s_data->numfmts, sizeof(*frmfmt), GFP_KERNEL);
++	if (!frmfmt)
++		return -ENOMEM;
++
++	s_data->frmfmt = frmfmt;
++
++	for (i = 0; i < s_data->numfmts; i++) {
++		struct sensor_mode_properties *sensor_mode =
++			&s_data->sensor_props.sensor_modes[i];
++		struct sensor_control_properties *ctrl =
++			&sensor_mode->control_properties;
++		u32 factor = ctrl->framerate_factor ? ctrl->framerate_factor : 1;
++		int *rates;
++
++		rates = devm_kcalloc(dev, 1, sizeof(*rates), GFP_KERNEL);
++		if (!rates)
++			return -ENOMEM;
++		rates[0] = ctrl->default_framerate ?
++			ctrl->default_framerate / factor : 30;
++
++		frmfmt->size.width = sensor_mode->image_properties.width;
++		frmfmt->size.height = sensor_mode->image_properties.height;
++		frmfmt->framerates = rates;
++		frmfmt->num_framerates = 1;
++		frmfmt->mode = i;
++
++		frmfmt++;
++	}
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(camera_common_fill_fmts);
++
+ int camera_common_focuser_init(struct camera_common_focuser_data *s_data)
+ {
+ 	int err = 0;
+diff -ruN a/nvidia-oot/drivers/media/platform/tegra/camera/tegracam_core.c b/nvidia-oot/drivers/media/platform/tegra/camera/tegracam_core.c
+--- a/nvidia-oot/drivers/media/platform/tegra/camera/tegracam_core.c	2026-07-17 15:22:42.616813539 -0700
++++ b/nvidia-oot/drivers/media/platform/tegra/camera/tegracam_core.c	2026-07-17 15:22:42.646524702 -0700
+@@ -142,8 +142,18 @@
+ 	mode_idx = s_data->mode_prop_idx = 0;
+ 	/* init format context */
+ 	/*TODO: compile frmfmt array from DT */
++	if (!tc_dev->sensor_ops->frmfmt_table) {
++		err = camera_common_fill_fmts(s_data);
++		if (err) {
++			dev_err(dev, "Failed to fill formats %s\n", tc_dev->name);
++			return err;
++		}
++		goto skip_frmfmt;
++	}
+ 	s_data->frmfmt = tc_dev->sensor_ops->frmfmt_table;
+ 	s_data->numfmts = tc_dev->sensor_ops->numfrmfmts;
++
++skip_frmfmt:
+ 	sensor_mode = &s_data->sensor_props.sensor_modes[mode_idx];
+ 	signal_props = &sensor_mode->signal_properties;
+ 	image_props = &sensor_mode->image_properties;
+diff -ruN a/nvidia-oot/include/media/camera_common.h b/nvidia-oot/include/media/camera_common.h
+--- a/nvidia-oot/include/media/camera_common.h	2026-07-17 15:22:42.618788593 -0700
++++ b/nvidia-oot/include/media/camera_common.h	2026-07-17 15:22:42.646771404 -0700
+@@ -315,6 +315,7 @@
+ int camera_common_parse_ports(struct device *dev,
+ 			      struct camera_common_data *s_data);
+ int camera_common_mclk_enable(struct camera_common_data *s_data);
++int camera_common_fill_fmts(struct camera_common_data *s_data);
+ void camera_common_mclk_disable(struct camera_common_data *s_data);
+ int camera_common_parse_general_properties(struct device *dev,
+ 			      struct camera_common_data *s_data);
