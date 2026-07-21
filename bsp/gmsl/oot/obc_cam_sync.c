@@ -22,16 +22,13 @@ static inline u32 cdi_tsc_controller_readl(struct tsc_signal_controller *control
 {
 	return readl(controller->base + reg);
 }
-//--------------------------------------------------------------------------
 
 
 int m_lock = 0;
 
-//--------------------------------------------------------------------------
 static int debug_en = 0;
 module_param(debug_en, int, 0644);
 
-//--------------------------------------------------------------------------
 
 static int cdi_tsc_find_and_add_generators(struct tsc_signal_controller *controller)
 {
@@ -59,7 +56,6 @@ static int cdi_tsc_find_and_add_generators(struct tsc_signal_controller *control
 		if (!generator)
 			return -ENOMEM;
 
-		/* Read pinmux gpio from DT */
 		generator->config.gpio_pinmux = of_get_named_gpio(np, "gpio_pinmux", 0);
 
 		generator->of = np;
@@ -205,7 +201,6 @@ static int cdi_tsc_start_generators(struct tsc_signal_controller *controller)
 
 	cdi_tsc_program_generator_start_values(controller);
 
-	/* Start the generators */
 	list_for_each_entry(generator, &cam_sync->controller.generators, list) {
 		cdi_tsc_generator_writel(generator, TSC_GENX_CTRL,
 			TSC_GENX_CTRL_INITIAL_VAL | TSC_GENX_CTRL_ENABLE);
@@ -222,14 +217,13 @@ static int cdi_tsc_stop_generators(struct tsc_signal_controller *controller)
 	list_for_each_entry(generator, &cam_sync->controller.generators, list) {
 		cdi_tsc_generator_writel(generator, TSC_GENX_CTRL, TSC_GENX_CTRL_RST);
 
-		/* Ensure the generator has stopped */
 		if (!cdi_tsc_generator_is_idle(generator)) {
 			dev_err(controller->dev, "Generator %s failed to stop\n",
 				generator->of->full_name);
 			return -EIO;
 		}
-		/* To avoid pin state in "high", When tsc gen stopped. Which inturn causes
-		 * inconsistency in sensor streaming */
+		/* Avoid leaving the pin high after the generator stops; that causes
+		 * inconsistent sensor streaming. */
 		gpio_request(generator->config.gpio_pinmux, "tsc-gen");
 	}
 
@@ -417,7 +411,6 @@ static void cam_sync_set_mode(cs_param_t *param)
         {
             period = (cam_sync->ldelay + cam_sync->hdelay) * 1000;
             set_pwm_period(cam_sync, period);
-            // dev_info(cam_sync->dev, "sync out mode pwm_period :%ldns\n", period);
         }
     }
 }
@@ -425,7 +418,6 @@ static void cam_sync_set_mode(cs_param_t *param)
 static ssize_t cam_sync_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
     int ret;
-    // cam_sync_t *cam_sync = container_of(file->private_data, cam_sync_t, misc_dev);
     dev_info(cam_sync->dev, "cam-sync read:%d, %d\n", cam_sync->param.mode, cam_sync->param.fps);
 
     ret = copy_to_user(buf, &cam_sync->param, sizeof(cam_sync->param));
@@ -439,7 +431,6 @@ static ssize_t cam_sync_read(struct file *file, char __user *buf, size_t count, 
 
 static ssize_t cam_sync_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
-    // cam_sync_t *cam_sync = container_of(file->private_data, cam_sync_t, misc_dev);
     cs_param_t param;
     int ret = copy_from_user(&param, buf, sizeof(param));
     if (ret)
@@ -449,7 +440,7 @@ static ssize_t cam_sync_write(struct file *file, const char __user *buf, size_t 
     }
     dev_info(cam_sync->dev, "cam-sync write:%d, %d\n", param.mode, param.fps);
 
-    if (param.mode > 2 || param.fps < 1 * FPS_SCALE || param.fps > 120 * FPS_SCALE) // 1~120fps
+    if (param.mode > 2 || param.fps < 1 * FPS_SCALE || param.fps > 120 * FPS_SCALE)
         return -1;
 
     cam_sync_set_mode(&param);
@@ -515,7 +506,6 @@ static int cam_sync_open(struct inode *inode, struct file *file)
 
 static int cam_sync_release(struct inode *inode, struct file *file)
 {
-    // cam_sync_t *cam_sync = container_of(file->private_data, cam_sync_t, misc_dev);
     cam_sync_stop();
     return 0;
 }
@@ -537,10 +527,10 @@ static enum hrtimer_restart cam_sync_hrtimer_irq(struct hrtimer *timer)
     gpio_set_value(cam_sync->sync_out_gpios, cam_sync->is_high ? 1 : 0);
 
     kt = ktime_set(0, (cam_sync->is_high ? cam_sync->hdelay : cam_sync->ldelay) * 1000); // ns
-    hrtimer_forward(timer, timer->base->get_time(), kt);                                 // hrtimer_forward(trigger_timer, now, tick_period);
+    hrtimer_forward(timer, timer->base->get_time(), kt);
     cam_sync->is_high ^= 1;
     dev_dbg(cam_sync->dev, "htim\n");
-    return HRTIMER_RESTART; // HRTIMER_NORESTART
+    return HRTIMER_RESTART;
 }
 
 static void cam_sync_in_timer_irq(struct timer_list *timer)
@@ -561,7 +551,6 @@ static irqreturn_t cam_sync_in_trigger_irq(int irq, void *data)
 
     dev_dbg(cam_sync->dev, "tri\n");
 
-    /* start trigger_timer */
     cam_sync->delay_timer.expires = jiffies + DELAY_TIME;
     add_timer(&cam_sync->delay_timer);
 
@@ -650,7 +639,7 @@ static int obc_cam_sync_probe(struct platform_device *pdev)
         }
     }
 
-    cam_sync->pwm = devm_of_pwm_get(dev, dev->of_node, NULL);
+    cam_sync->pwm = devm_pwm_get(dev, NULL);
     if (IS_ERR(cam_sync->pwm))
         dev_info(dev, "Could not get PWM\n");
     else
@@ -660,10 +649,6 @@ static int obc_cam_sync_probe(struct platform_device *pdev)
         cam_sync->pwm_state.duty_cycle = 1000000; // 1ms
         pwm_apply_state(cam_sync->pwm, &cam_sync->pwm_state);
     }
-    /*
-    if (cam_sync->sync_out_gpios < 0 && IS_ERR(cam_sync->pwm))
-        return -EINVAL;
-    */
 
     platform_set_drvdata(pdev, cam_sync);
 
@@ -681,7 +666,6 @@ static int obc_cam_sync_probe(struct platform_device *pdev)
 
 static int obc_cam_sync_remove(struct platform_device *pdev)
 {
-    // misc_deregister(&cam_sync->misc_dev);
     misc_deregister(&csync_misc_device);
     cdi_tsc_debugfs_remove(&cam_sync->controller);
     free_irq(cam_sync->irq, NULL);
@@ -689,8 +673,6 @@ static int obc_cam_sync_remove(struct platform_device *pdev)
         gpio_free(cam_sync->sync_in_gpios);
     if (cam_sync->sync_out_gpios > 0)
         gpio_free(cam_sync->sync_out_gpios);
-    if (cam_sync->pwm != NULL)
-        pwm_free(cam_sync->pwm);
     kfree(cam_sync);
     return 0;
 }

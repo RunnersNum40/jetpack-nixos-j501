@@ -12,8 +12,6 @@
 
 #include "max_des.h"
 
-/* TODO: backport fixes from MAX96724. */
-
 #define MAX9296A_PIPES_NUM		4
 
 struct max9296a_priv {
@@ -152,12 +150,10 @@ static int max9296a_init(struct max_des_priv *des_priv)
 	struct max9296a_priv *priv = des_to_priv(des_priv);
 	int ret;
 
-	/* Disable all PHYs. */
 	ret = max9296a_update_bits(priv, 0x332, GENMASK(7, 4), 0x00);
 	if (ret)
 		return ret;
 
-	/* Disable all pipes. */
 	ret = max9296a_update_bits(priv, 0x2, GENMASK(7, 4), 0x00);
 	if (ret)
 		return ret;
@@ -168,7 +164,6 @@ static int max9296a_init(struct max_des_priv *des_priv)
 			return ret;
 	}
 
-	/* Disable link auto-select. */
 	ret = max9296a_update_bits(priv, 0x10, BIT(4), 0);
 	if (ret)
 		return ret;
@@ -234,14 +229,11 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 		return -EINVAL;
 	}
 
-	/* Configure a lane count. */
-	/* TODO: Add support CPHY mode. */
 	ret = max9296a_update_bits(priv, 0x44a + 0x40 * phy->index, GENMASK(7, 6),
 				   FIELD_PREP(GENMASK(7, 6), num_data_lanes - 1));
 	if (ret)
 		return ret;
 
-	/* Configure lane mapping. */
 	/*
 	 * The lane of each PHY can be mapped to physical lanes 0, 1, 2,
 	 * and 3. This mapping is exclusive, multiple lanes, even if unused
@@ -368,58 +360,51 @@ static int max9296a_init_phy(struct max_des_priv *des_priv,
 	if (ret)
 		return ret;
 
-	/* Put DPLL block into reset. */
+	/* DPLL into reset, set + enable frequency, DPLL out of reset. */
 	ret = max9296a_update_bits(priv, 0x1c00 + 0x100 * master_phy, BIT(0), 0x00);
 	if (ret)
 		return ret;
 
-	/* Set DPLL frequency. */
 	reg = 0x31d + 0x3 * master_phy;
 	ret = max9296a_update_bits(priv, reg, GENMASK(4, 0),
 				   div_u64(dpll_freq, 100000000));
 	if (ret)
 		return ret;
 
-	/* Enable DPLL frequency. */
 	ret = max9296a_update_bits(priv, reg, BIT(5), BIT(5));
 	if (ret)
 		return ret;
 
-	/* Pull DPLL block out of reset. */
 	ret = max9296a_update_bits(priv, 0x1c00 + 0x100 * master_phy, BIT(0), 0x01);
 	if (ret)
 		return ret;
 
 
 	if (dpll_freq > 1500000000ull) {
-		/* Enable initial deskew with 2 x 32k UI. */
+		/* Initial deskew 2 x 32k UI, periodic deskew 2 x 1k UI. */
 		ret = max9296a_write(priv, 0x443 + 0x40 * phy->index, 0x81);
 		if (ret)
 			return ret;
 
-		/* Enable periodic deskew with 2 x 1k UI.. */
 		ret = max9296a_write(priv, 0x444 + 0x40 * phy->index, 0x81);
 		if (ret)
 			return ret;
 	} else {
-		/* Disable initial deskew. */
+		/* Initial and periodic deskew disabled. */
 		ret = max9296a_write(priv, 0x443 + 0x40 * phy->index, 0x07);
 		if (ret)
 			return ret;
 
-		/* Disable periodic deskew. */
 		ret = max9296a_write(priv, 0x444 + 0x40 * phy->index, 0x01);
 		if (ret)
 			return ret;
 	}
 
-	/* Set alternate memory map modes. */
 	val  = phy->alt_mem_map12 ? BIT(0) : 0;
 	val |= phy->alt_mem_map8 ? BIT(1) : 0;
 	val |= phy->alt_mem_map10 ? BIT(2) : 0;
 	ret = max9296a_update_bits(priv, 0x433 + 0x40 * master_phy, GENMASK(2, 0), val);
 
-	/* Enable PHY. */
 	mask = (BIT(master_phy) | BIT(slave_phy)) << 4;
 	ret = max9296a_update_bits(priv, 0x332, mask, mask);
 	if (ret)
@@ -443,23 +428,19 @@ static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
 	else if (remap->phy == 1)
 		phy_id = 2;
 
-	/* Set source Data Type and Virtual Channel. */
-	/* TODO: implement extended Virtual Channel. */
 	reg = 0x40d + 0x40 * index + i * 2;
 	ret = max9296a_write(priv, reg,
 			     MAX_DES_DT_VC(remap->from_dt, remap->from_vc));
 	if (ret)
 		return ret;
 
-	/* Set destination Data Type and Virtual Channel. */
-	/* TODO: implement extended Virtual Channel. */
 	reg = 0x40e + 0x40 * index + i * 2;
 	ret = max9296a_write(priv, reg,
 			     MAX_DES_DT_VC(remap->to_dt, remap->to_vc));
 	if (ret)
 		return ret;
 
-	/* Set destination PHY. */
+	/* Destination PHY. */
 	reg = 0x42d + 0x40 * index + i / 4;
 	shift = (i % 4) * 2;
 	mask = 0x3 << shift;
@@ -468,7 +449,7 @@ static int max9296a_init_pipe_remap(struct max9296a_priv *priv,
 	if (ret)
 		return ret;
 
-	/* Enable remap. */
+	/* Remap enable. */
 	reg = 0x40b + 0x40 * index + i / 8;
 	val = BIT(i % 8);
 	ret = max9296a_update_bits(priv, reg, val, val);
@@ -504,7 +485,6 @@ static int max9296a_init_pipe(struct max_des_priv *des_priv,
 	unsigned int reg, mask;
 	int ret;
 
-	/* Enable pipe. */
 	mask = BIT(index + 4);
 	ret = max9296a_update_bits(priv, 0x2, mask, mask);
 	if (ret)
@@ -517,7 +497,6 @@ static int max9296a_init_pipe(struct max_des_priv *des_priv,
 			return ret;
 	}
 
-	/* Set source stream. */
 	if (priv->info->num_pipes == 1)
 		reg = 0x161;
 	else
@@ -651,11 +630,11 @@ static int max9296a_probe(struct i2c_client *client)
 	return max_des_probe(&priv->des_priv);
 }
 
-static int max9296a_remove(struct i2c_client *client)
+static void max9296a_remove(struct i2c_client *client)
 {
 	struct max9296a_priv *priv = i2c_get_clientdata(client);
 
-	return max_des_remove(&priv->des_priv);
+	max_des_remove(&priv->des_priv);
 }
 
 static const struct max9296a_chip_info max9296a_info = {
@@ -688,7 +667,7 @@ static struct i2c_driver max9296a_i2c_driver = {
 		.name = "max9296a",
 		.of_match_table	= of_match_ptr(max9296a_of_table),
 	},
-	.probe_new = max9296a_probe,
+	.probe = max9296a_probe,
 	.remove = max9296a_remove,
 };
 

@@ -204,13 +204,13 @@ enum max96717_pinctrl_params {
 };
 
 static const struct pinconf_generic_params max96717_cfg_params[] = {
-	{ "maxim,pull-strength-weak", MAX96717_PINCTRL_PULL_STRENGTH_WEAK, 0 },
-	{ "maxim,jitter-compensation", MAX96717_PINCTRL_JITTER_COMPENSATION_EN, 0 },
-	{ "maxim,gmsl-tx", MAX96717_PINCTRL_GMSL_TX_EN, 0 },
-	{ "maxim,gmsl-rx", MAX96717_PINCTRL_GMSL_RX_EN, 0 },
-	{ "maxim,gmsl-tx-id", MAX96717_PINCTRL_GMSL_TX_ID, 0 },
-	{ "maxim,gmsl-rx-id", MAX96717_PINCTRL_GMSL_RX_ID, 0 },
-	{ "maxim,rclkout-clock", MAX96717_PINCTRL_RCLKOUT_CLK, 0 },
+	{ "maxim,pull-strength-weak", (enum pin_config_param)MAX96717_PINCTRL_PULL_STRENGTH_WEAK, 0 },
+	{ "maxim,jitter-compensation", (enum pin_config_param)MAX96717_PINCTRL_JITTER_COMPENSATION_EN, 0 },
+	{ "maxim,gmsl-tx", (enum pin_config_param)MAX96717_PINCTRL_GMSL_TX_EN, 0 },
+	{ "maxim,gmsl-rx", (enum pin_config_param)MAX96717_PINCTRL_GMSL_RX_EN, 0 },
+	{ "maxim,gmsl-tx-id", (enum pin_config_param)MAX96717_PINCTRL_GMSL_TX_ID, 0 },
+	{ "maxim,gmsl-rx-id", (enum pin_config_param)MAX96717_PINCTRL_GMSL_RX_ID, 0 },
+	{ "maxim,rclkout-clock", (enum pin_config_param)MAX96717_PINCTRL_RCLKOUT_CLK, 0 },
 };
 
 static int max96717_ctrl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -449,7 +449,7 @@ static int max96717_conf_pin_config_set_one(struct max96717_priv *priv,
 		config = pinconf_to_config_packed(PIN_CONFIG_OUTPUT_ENABLE, 1);
 		return max96717_conf_pin_config_set_one(priv, offset, config);
 	case PIN_CONFIG_OUTPUT_ENABLE:
-		config = pinconf_to_config_packed(MAX96717_PINCTRL_GMSL_RX_EN, 0);
+		config = pinconf_to_config_packed((enum pin_config_param)MAX96717_PINCTRL_GMSL_RX_EN, 0);
 		return max96717_conf_pin_config_set_one(priv, offset, config);
 	default:
 		break;
@@ -586,7 +586,7 @@ static int max96717_gpio_direction_output(struct gpio_chip *gc, unsigned int off
 
 static int max96717_gpio_get(struct gpio_chip *gc, unsigned int offset)
 {
-	unsigned long config = pinconf_to_config_packed(MAX96717_PINCTRL_INPUT_VALUE, 0);
+	unsigned long config = pinconf_to_config_packed((enum pin_config_param)MAX96717_PINCTRL_INPUT_VALUE, 0);
 	struct max96717_priv *priv = gpiochip_get_data(gc);
 	int ret;
 
@@ -625,28 +625,32 @@ static int max96717_fsync_set(struct max_ser_priv *ser_priv,int status)
 {
 	struct max96717_priv *priv = ser_to_priv(ser_priv);
 	int err = 0;
+	/*
+	 * MFP7 fsync RX. 0x2d3: GPIO_OUT_DIS[0], GPIO_TX_EN[1], GPIO_RX_EN[2],
+	 * GPIO_IN[3], GPIO_OUT[4], RES_CFG[7] (0=40k, 1=1M pull).
+	 * 0x2d4: GPIO_TX_ID[4:0], OUT_TYPE[5], PULL_UPDN_SEL[7:6].
+	 * 0x2d5: GPIO_RX_ID[4:0].
+	 */
 	if(status == 1){
-		// /* MFP7, fsync, RX */
-		err = max96717_write(priv, 0x2D3, 0x84);// RES_CFG[7]: 0->40K, 1->1M; GPIO_RX_EN[2]; GPIO_TX_EN[1], GPIO_OUT[4]; GPIO_IN[3]，GPIO_OUT_DIS[0]:Disables GPIO output driver 0->enale,1->disable; 
+		err = max96717_write(priv, 0x2D3, 0x84);
 		if (err == 0)
 			dev_info(priv->dev, "%s 0x2D3 done\n", __func__);
 		else
 			dev_err(priv->dev, "%s 0x2D3 failed, err %d\n", __func__, err);
 
-		err = max96717_write(priv, 0x2D4, 0xA0);// PULL_UPDN_SEL[7:6]: 0->7no pullup, 1->Pullup, 2->Pulldown; OUT_TYPE[5]: 1->Push-pull, 0->Open-drain; GPIO_TX_ID[4:0]
+		err = max96717_write(priv, 0x2D4, 0xA0);
 		if (err == 0)
 			dev_info(priv->dev, "%s 0x2D4 done\n", __func__);
 		else
 			dev_err(priv->dev, "%s 0x2D4 failed, err %d\n", __func__, err);
-		err = max96717_write(priv, 0x2D5, 0x02);// GPIO_RX_ID[4:0]
+		err = max96717_write(priv, 0x2D5, 0x02);
 
 		if (err == 0)
 			dev_info(priv->dev, "%s 0x2D5 done\n", __func__);
 		else
 			dev_err(priv->dev, "%s  0x2D5 failed, err %d\n", __func__, err);
 	}else{
-		// /* MFP7, fsync, RX */
-		err = max96717_write(priv, 0x2D3, 0x9a);// RES_CFG[7]: 0->40K, 1->1M; GPIO_RX_EN[2]; GPIO_TX_EN[1], GPIO_OUT[4]; GPIO_IN[3]，GPIO_OUT_DIS[0]:Disables GPIO output driver 0->enale,1->disable; 
+		err = max96717_write(priv, 0x2D3, 0x9a);
 		if (err == 0)
 			dev_info(priv->dev, "%s 0x2D3 done\n", __func__);
 		else
@@ -723,7 +727,6 @@ static int max96717_update_pipe_dts(struct max_ser_priv *ser_priv,
 			return ret;
 	}
 
-	/* Disable unused DTs. */
 	for (i = pipe->num_dts; i < ser_priv->ops->num_dts_per_pipe; i++) {
 		ret = max96717_set_pipe_dt_en(priv, pipe, i, false);
 		if (ret)
@@ -831,15 +834,10 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 	shift = index == 1 ? 4 : 0;
 	mask = GENMASK(1, 0);
 
-	/* Configure a lane count. */
-	/* TODO: Add support for 1-lane configurations. */
 	ret = max96717_update_bits(priv, 0x331, mask << shift, val << shift);
 	if (ret)
 		return ret;
 
-	/* Configure lane mapping. */
-	/* TODO: Add support for lane swapping. */
-	/* TODO: Handle PHY A. */
 	ret = max96717_update_bits(priv, 0x332, 0xf0, 0xe0);
 	if (ret)
 		return ret;
@@ -848,9 +846,6 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
-	/* Configure lane polarity. */
-	/* Lower two lanes. */
-	/* TODO: Handle PHY A. */
 	val = 0;
 	for (i = 0; i < 3 && i < num_data_lanes + 1; i++)
 		if (phy->mipi.lane_polarities[i])
@@ -859,7 +854,6 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 	if (ret)
 		return ret;
 
-	/* Upper two lanes. */
 	val = 0;
 	shift = 4;
 	mask = GENMASK(2, 0);
@@ -881,7 +875,6 @@ static int max96717_init_phy(struct max_ser_priv *ser_priv,
 			return ret;
 	}
 
-	/* Enable PHY. */
 	shift = 4;
 	mask = BIT(index) << shift;
 	ret = max96717_update_bits(priv, 0x308, mask, mask);
@@ -912,58 +905,49 @@ static int max96717_init_pipe(struct max_ser_priv *ser_priv,
 	unsigned int reg, val, shift, mask;
 	int ret;
 
-	/* Map pipe to PHY. */
 	mask = BIT(index);
 	val = phy_id == 1 ? mask : 0;
 	ret = max96717_update_bits(priv, 0x308, mask, val);
 	if (ret)
 		return ret;
 
-	/* Enable pipe output to PHY. */
 	shift = phy_id == 1 ? 4 : 0;
 	mask = BIT(index) << shift;
 	ret = max96717_update_bits(priv, 0x311, mask, mask);
 	if (ret)
 		return ret;
 
-	/* Set 8bit double mode. */
 	mask = BIT(index);
 	ret = max96717_update_bits(priv, 0x312, mask, pipe->dbl8 ? mask : 0);
 	if (ret)
 		return ret;
 
-	/* Set 10bit double mode. */
 	mask = BIT(index);
 	ret = max96717_update_bits(priv, 0x313, mask, pipe->dbl10 ? mask : 0);
 	if (ret)
 		return ret;
 
-	/* Set 12bit double mode. */
 	mask = BIT(index) << 4;
 	ret = max96717_update_bits(priv, 0x313, mask, pipe->dbl12 ? mask : 0);
 	if (ret)
 		return ret;
 
-	/* Set override soft BPP. */
 	reg = 0x31c + index;
 	mask = BIT(5);
 	ret = max96717_update_bits(priv, reg, mask, pipe->soft_bpp ? mask : 0);
 	if (ret)
 		return ret;
 
-	/* Set soft BPP. */
 	ret = max96717_update_bits(priv, reg, GENMASK(4, 0), pipe->soft_bpp);
 	if (ret)
 		return ret;
 
-	/* Set override BPP. */
 	reg = 0x100 + 0x8 * index;
 	mask = BIT(3);
 	ret = max96717_update_bits(priv, reg, mask, pipe->bpp ? 0 : mask);
 	if (ret)
 		return ret;
 
-	/* Set BPP. */
 	ret = max96717_update_bits(priv, reg + 1, GENMASK(5, 0), pipe->bpp);
 	if (ret)
 		return ret;
@@ -1007,8 +991,6 @@ static int max96717_init_pipes_stream_ids(struct max96717_priv *priv)
 		if (pipe->enabled)
 			continue;
 
-		/* Stream ID already used, find a free one. */
-		/* TODO: check whether there is no unused stream ID? */
 		if (used_stream_ids & BIT(pipe->stream_id))
 			pipe->stream_id = ffz(used_stream_ids);
 
@@ -1116,17 +1098,14 @@ static int max96717_init(struct max_ser_priv *ser_priv)
 			return ret;
 	}
 
-	/* Disable ports. */
 	ret = max96717_update_bits(priv, 0x308, GENMASK(5, 4), 0x00);
 	if (ret)
 		return ret;
 
-	/* Reset pipe to ports mapping. */
 	ret = max96717_update_bits(priv, 0x308, GENMASK(3, 0), 0x00);
 	if (ret)
 		return ret;
 
-	/* Disable pipes. */
 	ret = max96717_write(priv, 0x311, 0x00);
 	if (ret)
 		return ret;
@@ -1281,11 +1260,11 @@ static int max96717_probe(struct i2c_client *client)
 	return max_ser_probe(&priv->ser_priv);
 }
 
-static int max96717_remove(struct i2c_client *client)
+static void max96717_remove(struct i2c_client *client)
 {
 	struct max96717_priv *priv = i2c_get_clientdata(client);
 
-	return max_ser_remove(&priv->ser_priv);
+	max_ser_remove(&priv->ser_priv);
 }
 
 static const struct max96717_chip_info max96717_info = {
@@ -1337,7 +1316,7 @@ static struct i2c_driver max96717_i2c_driver = {
 		.name = MAX96717_NAME,
 		.of_match_table = max96717_of_ids,
 	},
-	.probe_new = max96717_probe,
+	.probe = max96717_probe,
 	.remove = max96717_remove,
 };
 

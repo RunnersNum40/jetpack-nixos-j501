@@ -21,8 +21,8 @@
 #define MAX96724_VIDEO_PIPE_SEL(p) (0xf0 + (p) / 2)
 #define MAX96724_VIDEO_PIPE_SEL_STREAM(p) (GENMASK(1, 0) << (4 * ((p) % 2)))
 
-#define MAX96712_LINK_AB_RATE_ADDR 0x10 // GMSL Link/PHY A&B Rate Select Register
-#define MAX96712_LINK_CD_RATE_ADDR 0x11 // GMSL Link/PHY C&D Rate Select Register
+#define MAX96712_LINK_AB_RATE_ADDR 0x10
+#define MAX96712_LINK_CD_RATE_ADDR 0x11
 
 #define field_prep(mask, val) (((val) << __ffs(mask)) & (mask))
 
@@ -130,13 +130,17 @@ static int max96724_post_init(struct max_des_priv *des_priv)
 	struct max96724_priv *priv = des_to_priv(des_priv);
 	int err = 0;
 
-    /* MFP2 fsync out */
-    /* Set Internal FSYNC off, GPIO is used for FSYNC, type = GMSL2 */
+    /* Internal FSYNC off, GPIO used for FSYNC, type GMSL2. */
     err = max96724_write(priv, 0x04A0, 0x08);
     err = max96724_write(priv, 0x04AF, 0x9F);
-    /* Config MAX96712/722 MFP2 to receive external FSYNC signal for each link */
-    err = max96724_write(priv, 0x300 + priv->des_priv.fsync_mfp_x * 3 + priv->des_priv.fsync_mfp_x / 5, 0x83);// RES_CFG[7]: 0->40K, 1->1M; GPIO_RX_EN[2]; GPIO_TX_EN[1], GPIO_OUT[4]; GPIO_IN[3]; GPIO_OUT_DIS[0]: 1->disable
-    err = max96724_write(priv, (0x300 + priv->des_priv.fsync_mfp_x * 3 + priv->des_priv.fsync_mfp_x / 5) + 1, 0xA2);// PULL_UPDN_SEL[7:6]: 0->no pullup, 1->Pullup, 2->Pulldown; OUT_TYPE[5]: 1->Push-pull, 0->Open-drain; GPIO_TX_ID[4:0]
+    /*
+     * Route external FSYNC in on MFP fsync_mfp_x to each link.
+     * GPIO_A: GPIO_OUT_DIS[0], GPIO_TX_EN[1], GPIO_RX_EN[2], GPIO_IN[3],
+     * GPIO_OUT[4], RES_CFG[7] (0=40k, 1=1M pull).
+     * GPIO_B: GPIO_TX_ID[4:0], OUT_TYPE[5], PULL_UPDN_SEL[7:6].
+     */
+    err = max96724_write(priv, 0x300 + priv->des_priv.fsync_mfp_x * 3 + priv->des_priv.fsync_mfp_x / 5, 0x83);
+    err = max96724_write(priv, (0x300 + priv->des_priv.fsync_mfp_x * 3 + priv->des_priv.fsync_mfp_x / 5) + 1, 0xA2);
     err = max96724_write(priv, 0x337 + priv->des_priv.fsync_mfp_x  * 3 + (priv->des_priv.fsync_mfp_x + 2) / 5, 0x22);
     err = max96724_write(priv, 0x36D + priv->des_priv.fsync_mfp_x  * 3 + (priv->des_priv.fsync_mfp_x  + 4) / 5, 0x22);
     err = max96724_write(priv, 0x3A4 + priv->des_priv.fsync_mfp_x  * 3 + (priv->des_priv.fsync_mfp_x  + 1) / 5, 0x22);
@@ -148,7 +152,6 @@ static int max96724_post_init(struct max_des_priv *des_priv)
 
 	return err;
 }
-// EXPORT_SYMBOL(max96724_init_tx_gpio);
 
 
 static int max96724_log_pipe_status(struct max_des_priv *des_priv,
@@ -312,8 +315,6 @@ static int max96724_init(struct max_des_priv *des_priv)
     int ret;
     unsigned int i;
 
-    /* select speed mode */
-
     if (des_priv->speed_mode)
     {
         // 6G
@@ -349,7 +350,6 @@ static int max96724_init(struct max_des_priv *des_priv)
         msleep(100);
     }
 
-    /* Disable all PHYs. */
     ret = max96724_update_bits(priv, 0x8a2, GENMASK(7, 4), 0x00);
     if (ret)
         return ret;
@@ -378,7 +378,6 @@ static int max96724_init(struct max_des_priv *des_priv)
         }
     }
 
-    /* Disable all pipes. */
     ret = max96724_update_bits(priv, 0xf4, GENMASK(3, 0), 0x00);
     if (ret)
         return ret;
@@ -403,8 +402,6 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
     unsigned int i;
     int ret;
 
-    /* Configure a lane count. */
-    /* TODO: Add support CPHY mode. */
     if (index == 1 && phy->mipi.clock_lane == MAX96724_PHY1_ALT_CLOCK &&
         phy->mipi.num_data_lanes == 2)
         num_hw_data_lanes = 4;
@@ -419,7 +416,6 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
     if (ret)
         return ret;
 
-    /* Configure lane mapping. */
     if (num_hw_data_lanes == 4)
     {
         mask = 0xff;
@@ -451,7 +447,6 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
     if (ret)
         return ret;
 
-    /* Configure lane polarity. */
     if (num_hw_data_lanes == 4)
     {
         mask = 0x3f;
@@ -483,53 +478,47 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
     {
 
         dev_info(priv->dev, "Enable  deskew!!!\n");
-        /* Enable initial deskew with 2 x 32k UI. */
+        /* Initial deskew 2 x 32k UI, periodic deskew 2 x 1k UI. */
         ret = max96724_write(priv, 0x903 + 0x40 * index, 0x81);
         if (ret)
             return ret;
 
-        /* Enable periodic deskew with 2 x 1k UI.. */
         ret = max96724_write(priv, 0x904 + 0x40 * index, 0x81);
         if (ret)
             return ret;
     }
     else
     {
-        /* Disable initial deskew. */
+        /* Initial and periodic deskew disabled. */
         ret = max96724_write(priv, 0x903 + 0x40 * index, 0x07);
         if (ret)
             return ret;
 
-        /* Disable periodic deskew. */
         ret = max96724_write(priv, 0x904 + 0x40 * index, 0x01);
         if (ret)
             return ret;
     }
 
-    /* Put DPLL block into reset. */
+    /* DPLL into reset, set + enable frequency, DPLL out of reset. */
     ret = max96724_update_bits(priv, 0x1c00 + 0x100 * index, BIT(0), 0x00);
     if (ret)
         return ret;
 
-    /* Set DPLL frequency. */
     reg = 0x415 + 0x3 * index;
     ret = max96724_update_bits(priv, reg, GENMASK(4, 0),
                                div_u64(dpll_freq, 100000000));
     if (ret)
         return ret;
 
-    /* Enable DPLL frequency. */
     ret = max96724_update_bits(priv, reg, BIT(5), BIT(5));
     if (ret)
         return ret;
 
-    /* Pull DPLL block out of reset. */
     reg = 0x1c00 + 0x100 * index;
     ret = max96724_update_bits(priv, reg, BIT(0), 0x01);
     if (ret)
         return ret;
 
-    /* Set alternate memory map modes. */
     val = phy->alt_mem_map12 ? BIT(0) : 0;
     val |= phy->alt_mem_map8 ? BIT(1) : 0;
     val |= phy->alt_mem_map10 ? BIT(2) : 0;
@@ -539,7 +528,6 @@ static int max96724_init_phy(struct max_des_priv *des_priv,
     if (ret)
         return ret;
 
-    /* Enable PHY. */
     shift = 4;
     if (num_hw_data_lanes == 4)
         /* PHY 1 -> bits [1:0] */
@@ -564,23 +552,19 @@ static int max96724_init_pipe_remap(struct max96724_priv *priv,
     unsigned int reg, val, shift, mask;
     int ret;
 
-    /* Set source Data Type and Virtual Channel. */
-    /* TODO: implement extended Virtual Channel. */
     reg = 0x90d + 0x40 * index + i * 2;
     ret = max96724_write(priv, reg,
                          MAX_DES_DT_VC(remap->from_dt, remap->from_vc));
     if (ret)
         return ret;
 
-    /* Set destination Data Type and Virtual Channel. */
-    /* TODO: implement extended Virtual Channel. */
     reg = 0x90e + 0x40 * index + i * 2;
     ret = max96724_write(priv, reg,
                          MAX_DES_DT_VC(remap->to_dt, remap->to_vc));
     if (ret)
         return ret;
 
-    /* Set destination PHY. */
+    /* Destination PHY. */
     reg = 0x92d + 0x40 * index + i / 4;
     shift = (i % 4) * 2;
     mask = 0x3 << shift;
@@ -589,7 +573,7 @@ static int max96724_init_pipe_remap(struct max96724_priv *priv,
     if (ret)
         return ret;
 
-    /* Enable remap. */
+    /* Remap enable. */
     reg = 0x90b + 0x40 * index + i / 8;
     val = BIT(i % 8);
     ret = max96724_update_bits(priv, reg, val, val);
@@ -626,15 +610,7 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
     unsigned int reg, shift, mask;
     int ret;
 
-    // /*GMSL1_13 (0xB13, 0xC13, 0xD13, 0xE13)*/
-    // /*Bit7: set to 0, disable EOM*/
-    // dev_info(priv->dev,"disable EOM\n");
-    // reg = 0xB13 + 0x100 * index;
-    // ret = max96724_update_bits(priv, reg, BIT(7), 0);
-    // if (ret)
-    // 	return ret;
-
-    /* Set destination PHY. */
+    /* Destination PHY. */
     shift = index * 2;
     ret = max96724_update_bits(priv, 0x8ca, GENMASK(1, 0) << shift,
                                pipe->phy_id << shift);
@@ -648,18 +624,14 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
     if (ret)
         return ret;
 
-    /* Enable pipe. */
     ret = max96724_update_bits(priv, 0xf4, BIT(index), BIT(index));
     if (ret)
         return ret;
 
     if (!des_priv->pipe_stream_autoselect)
     {
-        /* Set source stream. */
         reg = 0xf0 + index / 2;
         shift = 4 * (index % 2);
-        //  ret = max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
-        //                 pipe->stream_id << shift);
         printk("will set 0xf0 pipe->stream_id =%d\r\n", pipe->stream_id);
         printk("in max96724_init_pipe: pipe=%p, &pipe->stream_id=%p, pipe->stream_id=%d\n",
                pipe, &pipe->stream_id, pipe->stream_id);
@@ -669,14 +641,12 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
             return ret;
     }
 
-    /* Set source link. */
     shift += 2;
     ret = max96724_update_bits(priv, reg, GENMASK(1, 0) << shift,
                                pipe->link_id << shift);
     if (ret)
         return ret;
 
-    /* Set 8bit double mode. */
     mask = BIT(index) << 4;
     ret = max96724_update_bits(priv, 0x414, mask, pipe->dbl8 ? mask : 0);
     if (ret)
@@ -687,7 +657,6 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
     if (ret)
         return ret;
 
-    /* Set 10bit double mode. */
     if (index == 3)
     {
         reg = 0x41d;
@@ -716,7 +685,6 @@ static int max96724_init_pipe(struct max_des_priv *des_priv,
     if (ret)
         return ret;
 
-    /* Set 12bit double mode. */
     mask = BIT(index);
     ret = max96724_update_bits(priv, 0x41f, mask, pipe->dbl12 ? mask : 0);
     if (ret)
@@ -818,7 +786,6 @@ static int max96724_probe(struct i2c_client *client)
     ops->num_pipes = priv->info->num_pipes;
     priv->des_priv.ops = ops;
 
-    // force print
     dev_err(dev, "num_pipes: %d\n", priv->info->num_pipes);
 
     ret = max96724_reset(priv);
@@ -826,33 +793,20 @@ static int max96724_probe(struct i2c_client *client)
         return ret;
 
     if(priv->info->num_pipes == 8){
-        // for 96712,set DPHY0 enable as MIPI clock
+        /* 96712: enable DPHY0 as MIPI clock. */
         ret = max96724_update_bits(priv, 0x8a0, 0x20, 0x20);
         if (ret)
             return ret;
     }
-    // debug:  set MAX96712_LINK_AB_RATE_ADDR  bit: 5:4, bit 1:0 to 0b01  3Gbps
-    // debug:  set MAX96712_LINK_CD_RATE_ADDR  bit: 5:4, bit 1:0 to 0b01  3Gbps
-    //  ret = max96724_write(priv, MAX96712_LINK_AB_RATE_ADDR, 0x11);
-    //  if (ret) {
-    //      dev_err(dev, "write MAX96712_LINK_AB_RATE_ADDR failed, %d\n", ret);
-    //      return ret;
-    //  }
-    //  ret = max96724_write(priv, MAX96712_LINK_CD_RATE_ADDR, 0x11);
-    //  if (ret) {
-    //      dev_err(dev, "write MAX96712_LINK_CD_RATE_ADDR failed, %d\n", ret);
-    //      return ret;
-    //  }
-    //  msleep(100);
 
     return max_des_probe(&priv->des_priv);
 }
 
-static int max96724_remove(struct i2c_client *client)
+static void max96724_remove(struct i2c_client *client)
 {
     struct max96724_priv *priv = i2c_get_clientdata(client);
 
-    return max_des_remove(&priv->des_priv);
+    max_des_remove(&priv->des_priv);
 }
 
 static const struct of_device_id max96724_of_table[] = {
@@ -868,7 +822,7 @@ static struct i2c_driver max96724_i2c_driver = {
         .name = "max96724",
         .of_match_table = of_match_ptr(max96724_of_table),
     },
-    .probe_new = max96724_probe,
+    .probe = max96724_probe,
     .remove = max96724_remove,
 };
 

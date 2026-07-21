@@ -16,7 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
-//--------------------------------------------------------------------------
 #define DELAY_TIME  1 // 20ms
 
 #define FPS_SCALE   100 //0.01 fps
@@ -24,14 +23,11 @@
 
 #define SYNC_HWTIMER_OFFSET_TIME 100 // 100us
 
-//--------------------------------------------------------------------------
 #define CAM_SYNC_START  _IOW('c', 1, int)
 #define CAM_SYNC_STOP   _IOW('c', 2, int)
 
-//--------------------------------------------------------------------------
 
 
-//--------------------------------------------------------------------------
 #define TSC_TICKS_PER_HZ			(31250000ULL)
 #define TSC_NS_PER_TICK				(32)
 #define NS_PER_MS				(1000000U)
@@ -75,27 +71,14 @@
 #define TSC_GENX_EDGEX_LOOP			BIT(28)
 #define TSC_GENX_EDGEX_OFFSET			GENMASK(27, 0)
 
-/* Time (ms) offset for the TSC signal generators */
 #define TSC_GENX_START_OFFSET_MS		(100)
 
-/**
- * struct tsc_signal_generator : Generator context.
- * @base: ioremapped register base.
- * @of: Generator device node.
- * @config:
- *   @freq_hz: Frequency (hz) of the generator.
- *   @duty_cycle: Duty cycle (%) of the generator.
- *   @offset_ms: Offset (ms) to shift the signal by.
- * @debugfs:
- *   @regset_ro: Debug FS read-only register set.
- * @list: List node
- */
 struct tsc_signal_generator {
 	void __iomem *base;
 	struct device_node *of;
 	struct {
 		u32 freq_hz;
-		u32 duty_cycle;
+		u32 duty_cycle; /* percent */
 		u32 offset_ms;
 		u32 gpio_pinmux;
 	} config;
@@ -105,14 +88,6 @@ struct tsc_signal_generator {
 	struct list_head list;
 };
 
-/**
- * struct tsc_signal_controller : Controller context
- * @dev: device.
- * @base: ioremapped register base.
- * @debugfs:
- *   @d: dentry to debugfs directory.
- * @generators: Linked list of child generators.
- */
 struct tsc_signal_controller {
 	struct device *dev;
 	void __iomem *base;
@@ -158,14 +133,13 @@ typedef struct
     unsigned long pwm_period;
     unsigned long pwm_value;
     uint32_t trigger_type;
-    uint32_t irq; /* IRQ number */
+    uint32_t irq;
     unsigned long hdelay;
     unsigned long ldelay;
     int sync_in_gpios;
     int sync_out_gpios;
     bool irq_enabled;
     uint8_t is_high;
-    // ktime_t kt;
 } cam_sync_t;
 
 cam_sync_t *cam_sync = NULL;

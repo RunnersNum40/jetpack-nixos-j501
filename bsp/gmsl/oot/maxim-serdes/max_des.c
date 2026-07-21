@@ -115,7 +115,6 @@ static int max_des_update_pipe_remaps(struct max_des_priv *priv,
 		else
 			num_remaps = 3;
 
-		//这里需要根据设备树来配置dt与vc
 		for (i = 0; i < num_remaps; i++) {
 			struct max_des_dt_vc_remap *remap;
 			unsigned int dt;
@@ -326,7 +325,6 @@ static int max_des_ser_atr_attach_client(struct i2c_atr *atr, u32 chan_id,
 static void max_des_ser_atr_detach_client(struct i2c_atr *atr, u32 chan_id,
 					  const struct i2c_client *client)
 {
-	/* Don't do anything. */
 }
 
 static const struct i2c_atr_ops max_des_i2c_atr_ops = {
@@ -815,7 +813,6 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 
 	fwnode_property_read_string(fwnode, "label", &sd_priv->label);
 
-	/* TODO: implement extended Virtual Channel. */
 	val = sd_priv->src_vc_id;
 	fwnode_property_read_u32(fwnode, "maxim,src-vc-id", &val);
 	if (val >= MAX_SERDES_VC_ID_NUM) {
@@ -824,7 +821,6 @@ static int max_des_parse_ch_dt(struct max_des_subdev_priv *sd_priv,
 	}
 	sd_priv->src_vc_id = val;
 
-	/* TODO: implement extended Virtual Channel. */
 	val = sd_priv->dst_vc_id;
 	fwnode_property_read_u32(fwnode, "maxim,dst-vc-id", &val);
 	if (val >= MAX_SERDES_VC_ID_NUM) {
@@ -913,7 +909,7 @@ static int max_des_parse_src_dt_endpoint(struct max_des_subdev_priv *sd_priv,
 	struct v4l2_fwnode_endpoint v4l2_ep = {
 		.bus_type = V4L2_MBUS_CSI2_DPHY
 	};
-	struct v4l2_fwnode_bus_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
+	struct v4l2_mbus_config_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
 	struct fwnode_handle *ep;
 	u64 link_frequency;
 	unsigned int i;

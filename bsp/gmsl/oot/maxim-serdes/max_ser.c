@@ -70,7 +70,6 @@
 	 struct max_i2c_xlate *xlate;
 	 unsigned int i;
  
-	 /* Find index of matching I2C translation. */
 	 for (i = 0; i < priv->num_i2c_xlates; i++) {
 		 xlate = &priv->i2c_xlates[i];
  
@@ -80,17 +79,14 @@
  
 	 WARN_ON(i == priv->num_i2c_xlates);
  
-	 /* Starting from index + 1, copy index translation into index - 1. */
 	 for (i++; i < priv->num_i2c_xlates; i++) {
 		 priv->i2c_xlates[i - 1].src = priv->i2c_xlates[i].src;
 		 priv->i2c_xlates[i - 1].dst = priv->i2c_xlates[i].dst;
 	 }
  
-	 /* Zero out last index translation. */
 	 priv->i2c_xlates[priv->num_i2c_xlates].src = 0;
 	 priv->i2c_xlates[priv->num_i2c_xlates].dst = 0;
  
-	 /* Decrease number of translations. */
 	 priv->num_i2c_xlates--;
  
 	 priv->ops->init_i2c_xlate(priv);
@@ -147,7 +143,6 @@
 		 if (!sd_priv->fmt)
 			 continue;
  
-		 /* TODO: optimize by checking for existing filters. */
 		 pipe->dts[pipe->num_dts++] = sd_priv->fmt->dt;
 	 }
  
@@ -682,7 +677,7 @@
 	 struct v4l2_fwnode_endpoint v4l2_ep = {
 		 .bus_type = V4L2_MBUS_CSI2_DPHY
 	 };
-	 struct v4l2_fwnode_bus_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
+	 struct v4l2_mbus_config_mipi_csi2 *mipi = &v4l2_ep.bus.mipi_csi2;
 	 struct fwnode_handle *ep, *remote_ep;
 	 int ret;
  

@@ -22,10 +22,8 @@
 
 
 
-/* —— FourCC -> media bus code 映射 —— */
 static __u32 map_fourcc_to_mbus_code(__u32 fourcc)
 {
-	/* RAW Bayer 8-bit */
 #ifdef V4L2_PIX_FMT_SRGGB8
 	if (fourcc == V4L2_PIX_FMT_SRGGB8) return MEDIA_BUS_FMT_SRGGB8_1X8;
 #endif
@@ -39,7 +37,6 @@ static __u32 map_fourcc_to_mbus_code(__u32 fourcc)
 	if (fourcc == V4L2_PIX_FMT_SBGGR8) return MEDIA_BUS_FMT_SBGGR8_1X8;
 #endif
 
-	/* RAW Bayer 10-bit */
 #ifdef V4L2_PIX_FMT_SRGGB10
 	if (fourcc == V4L2_PIX_FMT_SRGGB10) return MEDIA_BUS_FMT_SRGGB10_1X10;
 #endif
@@ -53,7 +50,6 @@ static __u32 map_fourcc_to_mbus_code(__u32 fourcc)
 	if (fourcc == V4L2_PIX_FMT_SBGGR10) return MEDIA_BUS_FMT_SBGGR10_1X10;
 #endif
 
-	/* RAW Bayer 12-bit */
 #ifdef V4L2_PIX_FMT_SRGGB12
 	if (fourcc == V4L2_PIX_FMT_SRGGB12) return MEDIA_BUS_FMT_SRGGB12_1X12;
 #endif
@@ -67,7 +63,6 @@ static __u32 map_fourcc_to_mbus_code(__u32 fourcc)
 	if (fourcc == V4L2_PIX_FMT_SBGGR12) return MEDIA_BUS_FMT_SBGGR12_1X12;
 #endif
 
-	/* RAW Bayer 16-bit */
 #ifdef V4L2_PIX_FMT_SRGGB16
 	if (fourcc == V4L2_PIX_FMT_SRGGB16) return MEDIA_BUS_FMT_SRGGB16_1X16;
 #endif
@@ -81,7 +76,6 @@ static __u32 map_fourcc_to_mbus_code(__u32 fourcc)
 	if (fourcc == V4L2_PIX_FMT_SBGGR16) return MEDIA_BUS_FMT_SBGGR16_1X16;
 #endif
 
-	/* YUV 4:2:2 8-bit（常见打包） */
 #ifdef V4L2_PIX_FMT_YUYV
 	if (fourcc == V4L2_PIX_FMT_YUYV) return MEDIA_BUS_FMT_YUYV8_1X16;
 #endif
@@ -148,7 +142,6 @@ static const u32 ctrl_cid_list[] = {
 	TEGRA_CAMERA_CID_EXPOSURE_SHORT,
 	TEGRA_CAMERA_CID_FRAME_RATE,
 	TEGRA_CAMERA_CID_SENSOR_MODE_ID,
-	TEGRA_CAMERA_CID_TRIG_MODE_ID,
 };
 
 #define MAX_CHIP_ID_REGS		3
@@ -208,7 +201,7 @@ struct nv_cam {
 	struct nv_cam_mode		*modes;
 	unsigned int			num_modes;
 	bool need_cmd;
-	int fsync_type;		// 0: no fsync 1:external fsync 2: internal fsync
+	int fsync_type; /* 0 = none, 1 = external, 2 = internal */
 	cs_param_t fsync_param;
 };
 
@@ -386,13 +379,6 @@ static int nv_cam_set_exposure_short(struct tegracam_device *tc_dev, s64 val)
 	return 0;
 }
 
-static int nv_cam_set_trig_mode(struct tegracam_device *tc_dev, u32 val)
-{
-	struct nv_cam *priv = tegracam_get_privdata(tc_dev);
-	priv->fsync_type = val;
-    return 0;
-}
-
 static struct tegracam_ctrl_ops nv_cam_ctrl_ops = {
 	.numctrls = ARRAY_SIZE(ctrl_cid_list),
 	.ctrl_cid_list = ctrl_cid_list,
@@ -401,7 +387,6 @@ static struct tegracam_ctrl_ops nv_cam_ctrl_ops = {
 	.set_exposure_short = nv_cam_set_exposure_short,
 	.set_frame_rate = nv_cam_set_frame_rate,
 	.set_group_hold = nv_cam_set_group_hold,
-	.set_trig_mode = nv_cam_set_trig_mode,
 };
 
 static int nv_cam_power_on(struct camera_common_data *s_data)
@@ -423,7 +408,7 @@ static int nv_cam_power_on(struct camera_common_data *s_data)
 
 	
 	if (pw->pwdn_gpio) {
-		if (gpio_cansleep(pw->pwdn_gpio))
+		if (gpiod_cansleep(gpio_to_desc(pw->pwdn_gpio)))
 			gpio_set_value_cansleep(pw->pwdn_gpio, 1);
 		else
 			gpio_set_value(pw->pwdn_gpio, 1);
@@ -436,7 +421,7 @@ static int nv_cam_power_on(struct camera_common_data *s_data)
 
 	
 	if (pw->reset_gpio) {
-		if (gpio_cansleep(pw->reset_gpio))
+		if (gpiod_cansleep(gpio_to_desc(pw->reset_gpio)))
 			gpio_set_value_cansleep(pw->reset_gpio, 0);
 		else
 			gpio_set_value(pw->reset_gpio, 0);
@@ -466,7 +451,7 @@ static int nv_cam_power_on(struct camera_common_data *s_data)
 
 skip_power_seqn:
 	if (pw->reset_gpio) {
-		if (gpio_cansleep(pw->reset_gpio))
+		if (gpiod_cansleep(gpio_to_desc(pw->reset_gpio)))
 			gpio_set_value_cansleep(pw->reset_gpio, 1);
 		else
 			gpio_set_value(pw->reset_gpio, 1);
@@ -507,14 +492,14 @@ static int nv_cam_power_off(struct camera_common_data *s_data)
 		}
 	} else {
 		if (pw->reset_gpio) {
-			if (gpio_cansleep(pw->reset_gpio))
+			if (gpiod_cansleep(gpio_to_desc(pw->reset_gpio)))
 				gpio_set_value_cansleep(pw->reset_gpio, 0);
 			else
 				gpio_set_value(pw->reset_gpio, 0);
 		}
 
 		if (pw->pwdn_gpio) {
-			if (gpio_cansleep(pw->pwdn_gpio))
+			if (gpiod_cansleep(gpio_to_desc(pw->pwdn_gpio)))
 				gpio_set_value_cansleep(pw->pwdn_gpio, 0);
 			else
 				gpio_set_value(pw->pwdn_gpio, 0);
@@ -618,7 +603,6 @@ static int nv_cam_power_get(struct tegracam_device *tc_dev)
 		goto done;
 	}
 
-	/* Reset GPIO */
 	pw->reset_gpio = pdata->reset_gpio;
 	if (!pdata->reset_gpio)
 		goto skip_reset_gpio;
@@ -631,7 +615,6 @@ static int nv_cam_power_get(struct tegracam_device *tc_dev)
 
 skip_reset_gpio:
 
-	/* PWDN GPIO */
 	if (!pdata->pwdn_gpio)
 		goto skip_pwdn_gpio;
 	pw->pwdn_gpio = pdata->pwdn_gpio;
@@ -722,7 +705,6 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 	 	&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
 
 	
-	//u16 link_speed = 0;
 	u16 lane_rate = 0;
 
 	if (s_data->mode < 0 || s_data->mode > priv->num_modes){
@@ -732,9 +714,6 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 
 	lane_rate = mode->signal_properties.serdes_pixel_clock.val * 16 / 100000000 / mode->signal_properties.num_lanes;
 
-	//for csi4&csi5-->vin4 and csi6&csi7-->vin5 lane rate must Sum  two csi prot rate 
-	//rate = rate * depth / signal->num_lanes;
-	//signal->mipi_clock.val = rate / 2;
 
 	dev_err(dev, "==Total_lane_rate ,==lane_rate = 0x%x,  serdes_pixel_clock = %lld pixel_clock.val = %lld, mipi_clock.val = %lld\n", 
 			lane_rate, mode->signal_properties.serdes_pixel_clock.val, 
@@ -747,7 +726,6 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 
 	make_subdev_format_from_props(&mode->image_properties,&to_s_fmt);
 
-    /* —— 从 nv_cam 出发，依次找到 ser 与 des —— */
 	cam_src = first_source_pad(&s_data->subdev);
 	/* hop 1: nv_cam(src 0) -> ser(sink ?) */
 	ser = get_enabled_remote_sd(&s_data->subdev, cam_src, &ser_sink);
@@ -777,8 +755,6 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 		}
 	}
 
-	/* set frame sync */
-    
 	switch (priv->fsync_type)
 	{
 	case 0:
@@ -1321,8 +1297,7 @@ static int nv_cam_parse_dt_extra(struct nv_cam *priv)
 	return 0;
 }
 
-static int nv_cam_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int nv_cam_probe(struct i2c_client *client)
 {
 	struct regmap_config regmap_config;
 	struct device *dev = &client->dev;
@@ -1345,7 +1320,7 @@ static int nv_cam_probe(struct i2c_client *client,
 		return ret;
 
 	priv->fsync_param.mode = MODE_SYNC_OUT;	 
-	priv->fsync_param.fps = 30 * FPS_SCALE; // defualt fsync fps = 30FPS
+	priv->fsync_param.fps = 30 * FPS_SCALE;
 
 
 	regmap_config = sensor_regmap_config;
@@ -1378,15 +1353,13 @@ static int nv_cam_probe(struct i2c_client *client,
 	return tegracam_v4l2subdev_register(tc_dev, true);
 }
 
-static int nv_cam_remove(struct i2c_client *client)
+static void nv_cam_remove(struct i2c_client *client)
 {
 	struct camera_common_data *s_data = to_camera_common_data(&client->dev);
 	struct nv_cam *priv = (struct nv_cam *)s_data->priv;
 
 	tegracam_v4l2subdev_unregister(priv->tc_dev);
 	tegracam_device_unregister(priv->tc_dev);
-
-	return 0;
 }
 
 static const struct of_device_id nv_cam_of_match[] = {

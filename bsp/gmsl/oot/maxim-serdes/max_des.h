@@ -14,7 +14,6 @@
 #ifndef MAX_DES_H
 #define MAX_DES_H
 
-/* TODO: remove */
 #define MAX_DES_REMAPS_NUM		16
 
 #define MAX_DES_SOURCE_PAD		0
@@ -22,11 +21,6 @@
 #define MAX_DES_PAD_NUM			2
 
 extern const struct regmap_config max_des_i2c_regmap;
-
-struct max_des_asd {
-	struct v4l2_async_subdev base;
-	struct max_des_subdev_priv *sd_priv;
-};
 
 #define MAX_DES_DT_VC(dt, vc) (((vc) & 0x3) << 6 | ((dt) & 0x3f))
 
@@ -138,7 +132,7 @@ struct max_des_priv {
 	struct max_des_pipe *pipes;
 	struct max_des_link *links;
 	struct max_des_subdev_priv *sd_privs;
-	bool speed_mode; // 0 is 3G,1 is 6G
+	bool speed_mode; /* false = 3G, true = 6G */
 	int fsync_mfp_x;
 };
 
