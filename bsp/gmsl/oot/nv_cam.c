@@ -788,8 +788,23 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 {
 	struct nv_cam *priv = tegracam_get_privdata(tc_dev);
 	struct device *dev = &priv->i2c_client->dev;
+	struct camera_common_data *s_data = tc_dev->s_data;
 	int ret;
-	
+
+	/*
+	 * r39's VI never calls s_power on sensors behind a serdes chain, so
+	 * power the sensor here (pwdn/reset via serializer MFPs + settle for
+	 * its NOR firmware boot) before the start command. Matches the stock
+	 * r36 STREAMON trace, where power_on runs before any pipe/sensor write.
+	 */
+	if (s_data->power->state != SWITCH_ON) {
+		ret = nv_cam_power_on(s_data);
+		if (ret) {
+			dev_err(dev, "stream-start power on failed: %d\n", ret);
+			return ret;
+		}
+	}
+
 	if(priv->fsync_type == 1 ){
 		if(use_fsycn_single_device_number == 0){
 			cam_sync_ioctl_for_kernel(CAM_SYNC_START, priv->fsync_param);
@@ -823,14 +838,15 @@ static int nv_cam_stop_streaming(struct tegracam_device *tc_dev)
 	}
 
 
-	if(priv->need_cmd != true)
-		return 0;
-
-	ret = nv_cam_write_cmd(priv, &priv->stop_stream_cmd);
-	if (ret) {
-		dev_err(dev, "Failed to write stop stream cmd: %d\n", ret);
-		return ret;
+	if (priv->need_cmd == true) {
+		ret = nv_cam_write_cmd(priv, &priv->stop_stream_cmd);
+		if (ret)
+			dev_err(dev, "Failed to write stop stream cmd: %d\n", ret);
 	}
+
+	/* Mirror of the stream-start power on; stock parks the sensor in
+	 * powerdown after STREAMOFF. */
+	nv_cam_power_off(tc_dev->s_data);
 
 	return 0;
 }
