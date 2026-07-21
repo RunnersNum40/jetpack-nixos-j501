@@ -803,6 +803,13 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 			dev_err(dev, "stream-start power on failed: %d\n", ret);
 			return ret;
 		}
+		/*
+		 * The ISX031 boots its imaging firmware from module NOR after
+		 * power-up and silently ignores the start command until that
+		 * finishes; the working stock trace shows ~1.15s between
+		 * power-on and the first sensor write.
+		 */
+		msleep(3500);
 	}
 
 	if(priv->fsync_type == 1 ){
