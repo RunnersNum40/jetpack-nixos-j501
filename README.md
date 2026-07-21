@@ -174,12 +174,6 @@ The flash script flashes QSPI only (`flash_t234_qspi.xml`). The AGX Orin
 module's onboard eMMC is left untouched. An NVMe SSD (M.2 Key M) is the
 intended NixOS rootfs target.
 
-### Ethernet
-
-The J501 Mini has one 10GbE and one 1GbE port. The 10GbE is enabled via
-`ODMDATA=gbe-uphy-config-22,...,gbe0-enable-10g` in the Seeed board config.
-Both ports are available after boot with no additional configuration.
-
 ### CAN
 
 Two CAN/CAN-FD interfaces (`can0`, `can1`) on GH 1.25 connectors. Termination
@@ -221,13 +215,6 @@ hardware.enableRedistributableFirmware = true;
 Any card also needs its firmware (`hardware.enableRedistributableFirmware` or a
 targeted `hardware.firmware` entry) and a network stack
 (`networking.networkmanager.enable`).
-
-### Production-fused boards
-
-If your board has been production-fused with Seeed's SBK key, the QSPI
-bootloader chain is signed and cannot be replaced without Seeed's private key.
-In this case you would need a rootfs-only installation path that preserves the
-existing bootloader. This is not yet implemented.
 
 ## Development
 
