@@ -1346,8 +1346,14 @@ static int nv_cam_probe(struct i2c_client *client)
 	ret = nv_cam_board_setup(priv);
 	if (ret) {
 		tegracam_device_unregister(tc_dev);
-		dev_err(dev, "board setup failed\n");
-		return ret;
+		/*
+		 * The sensor's reverse i2c channel is only reliable once the
+		 * deserializer has finished link training, which can lag this
+		 * probe by seconds. Defer so the core retries rather than
+		 * abandoning the camera on a transient chip-id read failure.
+		 */
+		dev_warn(dev, "board setup failed (%d), deferring probe\n", ret);
+		return -EPROBE_DEFER;
 	}
 
 	return tegracam_v4l2subdev_register(tc_dev, true);
