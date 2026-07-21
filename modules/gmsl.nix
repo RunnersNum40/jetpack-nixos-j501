@@ -106,6 +106,12 @@ in
                         # NULL table. Restore Seeed's fallback that builds frmfmt
                         # from the DT sensor modes (camera_common_fill_fmts).
                         patch -p1 < ${../bsp/gmsl/oot/tegracam-dt-frmfmt.patch}
+
+                        # The VI channel's upstream walk assumes each subdev's
+                        # sink pad sits at (source_pad - 1); serdes channel
+                        # subdevs order source first, truncating the chain
+                        # before the sensor (vi-output bound to des_N_ch_N).
+                        patch -p1 < ${../bsp/gmsl/oot/vi-channel-subdev-walk.patch}
                       '';
                     });
                   }
