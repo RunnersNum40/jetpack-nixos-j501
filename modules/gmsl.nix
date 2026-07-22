@@ -150,31 +150,58 @@ in
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = true;
+            # Discovery + waiting for staggered camera probes to settle can run
+            # well past systemd's 90s default.
+            TimeoutStartSec = 180;
           };
           script = ''
-            # nv_cam probe is deferred until the deserializer finishes link
-            # training, so the media/video nodes appear seconds after boot and
-            # their numbers are not stable across probe order. Find the media
-            # device whose graph actually holds GMSL ser/des channel entities.
+            # This Orin may or may not have a GMSL expansion board (the module is
+            # enabled fleet-wide). Look for the media device holding the
+            # deserializer's channel entities; if none appears there is no board
+            # here and nothing to configure -- succeed quietly.
             mediadev=
             for _ in $(seq 1 60); do
               for m in /dev/media*; do
                 [ -e "$m" ] || continue
                 if ${pkgs.v4l-utils}/bin/media-ctl -d "$m" -p 2>/dev/null \
-                     | grep -qE 'entity [0-9]+: (ser|des)_[0-9]+_ch_'; then
+                     | grep -qE 'entity [0-9]+: des_[0-9]+_ch_'; then
                   mediadev="$m"
                   break
                 fi
               done
-              [ -n "$mediadev" ] && ls /dev/video* >/dev/null 2>&1 && break
+              [ -n "$mediadev" ] && break
               sleep 0.5
             done
-            [ -n "$mediadev" ] || { echo "no GMSL media device" >&2; exit 1; }
+            if [ -z "$mediadev" ]; then
+              echo "no GMSL media device; nothing to configure" >&2
+              exit 0
+            fi
+
+            # Cameras probe at staggered times -- each nv_cam defers until its
+            # GMSL link finishes training -- so their ser/des channel entities
+            # appear over several seconds. Wait for the set to stop changing
+            # before formatting, or a slow camera's channels are missed and left
+            # at FIXED/0x0.
+            list_entities() {
+              ${pkgs.v4l-utils}/bin/media-ctl -d "$mediadev" -p \
+                | sed -n 's/^- entity [0-9]*: \(\(ser\|des\)_[0-9]*_ch_[0-9]*\) .*/\1/p' \
+                | sort
+            }
+            prev=; stable=0; entities=
+            for _ in $(seq 1 120); do
+              cur=$(list_entities)
+              if [ -n "$cur" ] && [ "$cur" = "$prev" ]; then
+                stable=$((stable + 1))
+                [ "$stable" -ge 6 ] && { entities="$cur"; break; }
+              else
+                stable=0
+              fi
+              prev="$cur"
+              sleep 0.5
+            done
+            [ -n "$entities" ] || entities="$prev"
 
             fmt="${variantSubdevFormat.${cfg.variant}}"
-            entities=$(${pkgs.v4l-utils}/bin/media-ctl -d "$mediadev" -p \
-              | sed -n 's/^- entity [0-9]*: \(\(ser\|des\)_[0-9]*_ch_[0-9]*\) .*/\1/p')
-            [ -n "$entities" ] || { echo "no GMSL channel entities" >&2; exit 1; }
 
             # media-ctl enumerates every channel of both deserializers, but
             # only the connectors with a camera attached have a populated
