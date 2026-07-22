@@ -112,6 +112,15 @@ in
                         # subdevs order source first, truncating the chain
                         # before the sensor (vi-output bound to des_N_ch_N).
                         patch -p1 < ${../bsp/gmsl/oot/vi-channel-subdev-walk.patch}
+
+                        # The CSI channel's s_data is linked in a separate walk
+                        # (tegra_channel_connect_sensor) that matches the sensor's
+                        # OF endpoint against nvcsi nodes; for serdes the sensor
+                        # endpoint targets the serializer, so it stays NULL and
+                        # NVCSI's mipi_clock_rate falls back to csi->clk_freq
+                        # (~102 MHz) -> RCE mistunes T_HS_SETTLE -> SOT storm, no
+                        # frames. Recover the real MIPI clock from the VI channel.
+                        patch -p1 < ${../bsp/gmsl/oot/csi-mipi-clock-serdes.patch}
                       '';
                     });
                   }
