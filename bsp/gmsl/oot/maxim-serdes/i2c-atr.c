@@ -134,7 +134,7 @@ i2c_atr_find_mapping_by_addr(const struct list_head *list, u16 phys_addr)
 static int i2c_atr_map_msgs(struct i2c_atr_chan *chan, struct i2c_msg *msgs,
 			    int num)
 {
-	static struct i2c_atr_alias_pair *c2a;
+	struct i2c_atr_alias_pair *c2a;
 	int i;
 
 	/* Ensure we have enough room to save the original addresses */
