@@ -31,7 +31,9 @@ in
 
     variant = lib.mkOption {
       type = lib.types.enum (lib.attrNames variantDtboFile);
-      default = "1x4-3g";
+      # Default to the only variant on the working vendored stack; the 1x4
+      # variants still bind the stock max96712 stub (see bsp/gmsl/README.md).
+      default = "2x1x4-isx031";
       description = ''
         GMSL overlay variant matching the connected camera model:
         - "2x1x4-isx031": ISX031 + MAX9295A modules (e.g. Arducam 3MP ISX031
@@ -151,17 +153,26 @@ in
           };
           script = ''
             # nv_cam probe is deferred until the deserializer finishes link
-            # training, so the capture video node can appear seconds after
-            # /dev/media0. Wait for both before touching subdev formats.
+            # training, so the media/video nodes appear seconds after boot and
+            # their numbers are not stable across probe order. Find the media
+            # device whose graph actually holds GMSL ser/des channel entities.
+            mediadev=
             for _ in $(seq 1 60); do
-              [ -e /dev/media0 ] && [ -e /dev/video0 ] && break
+              for m in /dev/media*; do
+                [ -e "$m" ] || continue
+                if ${pkgs.v4l-utils}/bin/media-ctl -d "$m" -p 2>/dev/null \
+                     | grep -qE 'entity [0-9]+: (ser|des)_[0-9]+_ch_'; then
+                  mediadev="$m"
+                  break
+                fi
+              done
+              [ -n "$mediadev" ] && ls /dev/video* >/dev/null 2>&1 && break
               sleep 0.5
             done
-            [ -e /dev/media0 ] || { echo "no /dev/media0" >&2; exit 1; }
-            [ -e /dev/video0 ] || { echo "no /dev/video0" >&2; exit 1; }
+            [ -n "$mediadev" ] || { echo "no GMSL media device" >&2; exit 1; }
 
             fmt="${variantSubdevFormat.${cfg.variant}}"
-            entities=$(${pkgs.v4l-utils}/bin/media-ctl -d /dev/media0 -p \
+            entities=$(${pkgs.v4l-utils}/bin/media-ctl -d "$mediadev" -p \
               | sed -n 's/^- entity [0-9]*: \(\(ser\|des\)_[0-9]*_ch_[0-9]*\) .*/\1/p')
             [ -n "$entities" ] || { echo "no GMSL channel entities" >&2; exit 1; }
 
@@ -177,7 +188,7 @@ in
                 ser_*) pad=1 ;;
                 des_*) pad=0 ;;
               esac
-              if err=$(${pkgs.v4l-utils}/bin/media-ctl -d /dev/media0 \
+              if err=$(${pkgs.v4l-utils}/bin/media-ctl -d "$mediadev" \
                    --set-v4l2 "\"$e\":$pad[fmt:$fmt]" 2>&1); then
                 set_count=$((set_count + 1))
               elif [ "''${err#*No such file or directory}" != "$err" ]; then
