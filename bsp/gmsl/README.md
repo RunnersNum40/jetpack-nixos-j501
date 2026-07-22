@@ -154,3 +154,36 @@ NVCSI cannot lock the incoming lanes — a D-PHY timing/rate mismatch. Compare
 the RCE's reported "MIPI clock rate" (dmesg) against the real lane rate; a
 default like 102 MHz there points at an unlinked CSI-channel `s_data`
 (the `csi-mipi-clock-serdes.patch` case).
+
+## Deployment
+
+`hardware.j501.gmsl` is a library module — disabled by default, enabled by the
+downstream system config with the matching `variant`. Enabling it wires the DTBO
+into the flash image via `flashScriptOverrides`, so the overlay reaches the board
+either by a full reflash **or**, on systems with
+`hardware.nvidia-jetpack.firmware.autoUpdate = true`, by the UEFI capsule applied
+on `nixos-rebuild switch` (the device tree updates on the next boot). The kernel
+modules and the `gmsl-subdev-formats` service install with a normal switch, but
+the cameras do not probe until that DTBO update lands — an in-place switch with
+neither the capsule nor a reflash leaves GMSL inactive.
+
+## Known limitations (inherited upstream)
+
+The vendored Seeed drivers carry a few pre-existing robustness gaps in their
+error/teardown paths. They do not fire on a statically-configured board (no
+hot-unplug; probe runs to completion), so they are documented rather than patched
+to keep the vendored diff minimal — worth upstreaming to Seeed:
+
+- `max_ser`/`max_des` ATR detach clears one entry past the last active i2c
+  translation and decrements the count unconditionally (out-of-bounds write /
+  underflow on camera detach).
+- `max_ser_probe()`/`max_des_probe()` return directly from later failures after
+  creating the ATR and registering its bus notifier, without deleting the ATR or
+  unwinding partial V4L2 registration (stale references after a failed probe).
+- Pipe/stream `active` software state is set before the hardware write and not
+  rolled back on failure, so a retry of the same operation can exit early.
+- `nv_cam_parse_dt()` computes `-EPROBE_DEFER` for missing serializer GPIOs but
+  returns the pdata unconditionally, discarding the deferral. It does not bite
+  here because probe is already deferred until the serializer is up (chip-id
+  retry / link training); honouring it would need the tegracam framework to
+  accept an `ERR_PTR` from `parse_dt`.
