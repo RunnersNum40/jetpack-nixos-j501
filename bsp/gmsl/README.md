@@ -174,9 +174,6 @@ error/teardown paths. They do not fire on a statically-configured board (no
 hot-unplug; probe runs to completion), so they are documented rather than patched
 to keep the vendored diff minimal — worth upstreaming to Seeed:
 
-- `max_ser`/`max_des` ATR detach clears one entry past the last active i2c
-  translation and decrements the count unconditionally (out-of-bounds write /
-  underflow on camera detach).
 - `max_ser_probe()`/`max_des_probe()` return directly from later failures after
   creating the ATR and registering its bus notifier, without deleting the ATR or
   unwinding partial V4L2 registration (stale references after a failed probe).

@@ -77,17 +77,17 @@
 			 break;
 	 }
  
-	 WARN_ON(i == priv->num_i2c_xlates);
+	 if (WARN_ON(i == priv->num_i2c_xlates))
+		 return;
  
 	 for (i++; i < priv->num_i2c_xlates; i++) {
 		 priv->i2c_xlates[i - 1].src = priv->i2c_xlates[i].src;
 		 priv->i2c_xlates[i - 1].dst = priv->i2c_xlates[i].dst;
 	 }
  
+	 priv->num_i2c_xlates--;
 	 priv->i2c_xlates[priv->num_i2c_xlates].src = 0;
 	 priv->i2c_xlates[priv->num_i2c_xlates].dst = 0;
- 
-	 priv->num_i2c_xlates--;
  
 	 priv->ops->init_i2c_xlate(priv);
  }
