@@ -165,14 +165,22 @@ in
               | sed -n 's/^- entity [0-9]*: \(\(ser\|des\)_[0-9]*_ch_[0-9]*\) .*/\1/p')
             [ -n "$entities" ] || { echo "no GMSL channel entities" >&2; exit 1; }
 
+            # media-ctl enumerates every channel of both deserializers, but
+            # only the connectors with a camera attached have a live pipeline;
+            # the empty channels (e.g. des_1_* on a single-connector rig) reject
+            # the format. Set what we can and fail only if nothing took it.
+            set_count=0
             for e in $entities; do
               case "$e" in
                 ser_*) pad=1 ;;
                 des_*) pad=0 ;;
               esac
-              ${pkgs.v4l-utils}/bin/media-ctl -d /dev/media0 \
-                --set-v4l2 "\"$e\":$pad[fmt:$fmt]"
+              if ${pkgs.v4l-utils}/bin/media-ctl -d /dev/media0 \
+                   --set-v4l2 "\"$e\":$pad[fmt:$fmt]" 2>/dev/null; then
+                set_count=$((set_count + 1))
+              fi
             done
+            [ "$set_count" -gt 0 ] || { echo "no GMSL channel accepted $fmt" >&2; exit 1; }
           '';
         };
       })
