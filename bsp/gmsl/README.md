@@ -91,6 +91,33 @@ camera modules at all):
 `modules/gmsl.nix` injects these into the `l4t-oot-modules` build for the
 `2x1x4-isx031` variant.
 
+### r39 / kernel 6.8 adaptation
+
+The vendored r36.4.3 drivers are backported-mainline code, so the compile port
+to kernel 6.8 is mechanical. r39's camera framework (nvidia-oot) needs four
+patches, applied via `modules/gmsl.nix` `postPatch`:
+
+- `sensor_common-atr-bus.patch` — tolerate sensors on i2c-atr virtual buses,
+  which have no Tegra i2c-controller MMIO parent (stock r39 hard-fails there).
+- `tegracam-dt-frmfmt.patch` — `tegracam_device_register` NULL-derefs on a
+  DT-table sensor with no static `frmfmt_table`; build it from the DT modes.
+- `vi-channel-subdev-walk.patch` — r39's VI upstream walk assumes each subdev's
+  sink pad is at `source_index - 1`; serdes channel subdevs order source-first,
+  truncating the chain at the deserializer so the VI never learns the sensor.
+- `csi-mipi-clock-serdes.patch` — the CSI channel's `s_data` is left unlinked
+  for serdes topologies, so NVCSI auto-tuned `T_HS_SETTLE` from a 102 MHz
+  default instead of the real lane rate (D-PHY SOT-error storm, no frames);
+  recover the MIPI clock from the VI channel's resolved sensor.
+
+The vendored drivers also carry serdes-specific behaviour the stock r39 path
+lacks: `i2c-atr` passes unmapped client addresses through untranslated (GMSL
+parts self-address on the link), and `nv_cam` returns `-EPROBE_DEFER` until
+GMSL link training settles, then runs `power_on` plus a NOR-boot settle at
+stream start (r39's VI never calls `s_power` on a sensor behind a serdes).
+
+Proven end-to-end on NixOS / JetPack 7 (L4T r39.2, kernel 6.8) with two Arducam
+ISX031 modules: `/dev/video0` streams 1920x1536 YUYV, fully driver-managed.
+
 ## Adding another camera model
 
 The driver stack is camera-agnostic: the serdes drivers handle any GMSL2
@@ -119,3 +146,11 @@ If the sensor never streams, check in order: serializer RCLK/MCLK (sensor
 absent from i2c entirely means no clock or held in reset), chip-id read
 through the muxed adapter, then PCLKDET (serializer reg 0x102 bit 7) after the
 start command — it flips to 1 the moment the sensor emits pixels.
+
+If PCLKDET is set (sensor emitting) but the VI still times out with no frames,
+enable the `tegra_rtcpu/rtcpu_nvcsi_intr` ftrace event during a capture. A
+storm of `PHY_INTR` SOT-sync errors with zero CAPTURE SOF/EOF events means
+NVCSI cannot lock the incoming lanes — a D-PHY timing/rate mismatch. Compare
+the RCE's reported "MIPI clock rate" (dmesg) against the real lane rate; a
+default like 102 MHz there points at an unlinked CSI-channel `s_data`
+(the `csi-mipi-clock-serdes.patch` case).
