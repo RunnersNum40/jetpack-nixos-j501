@@ -11,6 +11,7 @@ Mechanical transform of the upstream DTS:
   4. Wire each serializer's inert `pins` node as its pinctrl default state and
      add an mfp4 rclkout group (24 MHz sensor MCLK -- Arducam modules derive
      the sensor clock from serializer MFP4).
+  5. Drop the copied 1080p/4K modes; the ISX031 emits only mode0 (1920x1536).
 """
 
 import re
@@ -71,6 +72,17 @@ text = re.sub(
     ),
     text,
 )
+
+
+# ISX031 modules emit only mode0 (1920x1536). The upstream template carries
+# copied 1080p/4K modes with empty nv,mode-cmd that the sensor never produces
+# (and nv_cam runs no mode commands anyway), so advertising them lets userspace
+# select a stream that never arrives. Keep only mode0. Each modeN block is flat
+# (properties only, no nested braces).
+mode_block = re.compile(r"\n[\t ]*mode[12] \{.*?\n[\t ]*\};", re.DOTALL)
+n = len(mode_block.findall(text))
+assert n == 16, f"mode1/2 blocks: {n}"
+text = mode_block.sub("", text)
 
 
 # pinctrl consumer props on each ser node, after its i2c-alias-pool line
