@@ -177,8 +177,16 @@ to keep the vendored diff minimal — worth upstreaming to Seeed:
 - `max_ser_probe()`/`max_des_probe()` return directly from later failures after
   creating the ATR and registering its bus notifier, without deleting the ATR or
   unwinding partial V4L2 registration (stale references after a failed probe).
-- Pipe/stream `active` software state is set before the hardware write and not
-  rolled back on failure, so a retry of the same operation can exit early.
+- Software state is committed before the hardware write and not rolled back on
+  failure: pipe/stream `active` (a retried STREAMON/STREAMOFF then exits early)
+  and the ATR i2c-translation state on attach (`num_i2c_xlates` /
+  `ser_xlate_enabled`, so a transient attach error leaves that channel bound but
+  unprogrammed with no retry).
+- `nv_cam` exposes exposure and frame-rate controls whose callbacks return
+  success without programming anything (the ISX031's on-board ISP free-runs, so
+  there is nothing to set); applications are told a change took effect when it
+  did not. Gain is guarded (returns `-EINVAL`); the others are left as-is
+  pending a decision on dropping the controls vs. failing them.
 - `nv_cam_parse_dt()` computes `-EPROBE_DEFER` for missing serializer GPIOs but
   returns the pdata unconditionally, discarding the deferral. It does not bite
   here because probe is already deferred until the serializer is up (chip-id
