@@ -346,6 +346,10 @@ static int nv_cam_set_gain(struct tegracam_device *tc_dev, s64 val)
 	struct camera_common_data *s_data = tc_dev->s_data;
 	struct nv_cam_mode *mode = &priv->modes[s_data->mode];
 
+	/* nv,gain-type is optional; modes without it expose no usable gain. */
+	if (!mode->gain_type)
+		return -EINVAL;
+
 	if (!strcmp(mode->gain_type, "simple"))
 		return nv_cam_set_gain_simple(tc_dev, val);
 	else if (!strcmp(mode->gain_type, "ad"))
@@ -1320,6 +1324,14 @@ static int nv_cam_parse_dt_extra(struct nv_cam *priv)
 	return 0;
 }
 
+/*
+ * Upper bound on how long nv_cam defers waiting for GMSL link training before
+ * abandoning a camera with its real probe error. Measured from the first
+ * deferral across all nv_cam instances (they start probing together at boot).
+ */
+#define NV_CAM_PROBE_DEFER_MS 45000
+static unsigned long nv_cam_first_defer;
+
 static int nv_cam_probe(struct i2c_client *client)
 {
 	struct regmap_config regmap_config;
@@ -1372,9 +1384,20 @@ static int nv_cam_probe(struct i2c_client *client)
 		/*
 		 * The sensor's reverse i2c channel is only reliable once the
 		 * deserializer has finished link training, which can lag this
-		 * probe by seconds. Defer so the core retries rather than
-		 * abandoning the camera on a transient chip-id read failure.
+		 * probe by seconds, so defer rather than abandon on a transient
+		 * chip-id read failure. Bound the wait (from the first deferral,
+		 * i.e. roughly when the cameras start probing at boot) so a truly
+		 * absent or wrong camera -- e.g. an empty connector, since the
+		 * overlay instantiates all eight -- is abandoned with its real
+		 * error instead of deferring forever.
 		 */
+		if (!nv_cam_first_defer)
+			nv_cam_first_defer = jiffies ? : 1UL;
+		if (time_after(jiffies, nv_cam_first_defer +
+					msecs_to_jiffies(NV_CAM_PROBE_DEFER_MS))) {
+			dev_err(dev, "board setup failed (%d), giving up\n", ret);
+			return ret;
+		}
 		dev_warn(dev, "board setup failed (%d), deferring probe\n", ret);
 		return -EPROBE_DEFER;
 	}
