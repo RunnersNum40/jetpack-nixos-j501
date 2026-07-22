@@ -113,8 +113,8 @@
  
 	 priv->atr = i2c_atr_new(priv->client->adapter, priv->dev,
 				 &max_ser_i2c_atr_ops, 1);
-	 if (!priv->atr)
-		 return -ENOMEM;
+	 if (IS_ERR(priv->atr))
+		 return PTR_ERR(priv->atr);
  
 	 i2c_atr_set_driver_data(priv->atr, priv);
  
