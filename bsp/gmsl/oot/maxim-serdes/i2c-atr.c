@@ -652,6 +652,9 @@ int i2c_atr_add_adapter(struct i2c_atr *atr, u32 chan_id,
 	return 0;
 
 err_fwnode_put:
+	/* published before i2c_add_adapter(); clear so unwind can't deref the
+	 * about-to-be-freed channel. */
+	atr->adapter[chan_id] = NULL;
 	fwnode_handle_put(dev_fwnode(&chan->adap.dev));
 	mutex_destroy(&chan->orig_addrs_lock);
 	kfree(chan);
