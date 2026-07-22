@@ -1,6 +1,6 @@
 --- a/nvidia-oot/drivers/media/platform/tegra/camera/vi/channel.c
 +++ b/nvidia-oot/drivers/media/platform/tegra/camera/vi/channel.c
-@@ -2079,16 +2079,29 @@
+@@ -2079,16 +2079,35 @@
  
  	sd->grp_id = grp_id;
  	chan->grp_id = grp_id;
@@ -9,19 +9,25 @@
 -		pad = &entity->pads[index];
 -		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 +	/*
-+	 * Walk upstream through the chain by following each entity's sink
-+	 * pad. The historical walk assumed the sink pad sits at
-+	 * (source_pad_index - 1), which breaks for subdevs that order their
-+	 * source pad first (e.g. GMSL serdes channel subdevs with source=0,
-+	 * sink=1) and silently truncated the chain before the sensor.
++	 * Walk upstream by following each entity's sink pad. Keep the historical
++	 * assumption that the sink sits at (source_index - 1) whenever it holds,
++	 * so existing (non-serdes) topologies are unaffected, and fall back to
++	 * the first sink pad only for subdevs that order their source pad first
++	 * (e.g. GMSL serdes channel subdevs with source=0, sink=1), which the old
++	 * assumption truncated before the sensor.
 +	 */
 +	while (1) {
 +		struct media_pad *sink_pad = NULL;
 +
-+		for (index = 0; index < (int)entity->num_pads; index++) {
-+			if (entity->pads[index].flags & MEDIA_PAD_FL_SINK) {
-+				sink_pad = &entity->pads[index];
-+				break;
++		if (pad->index >= 1 &&
++		    (entity->pads[pad->index - 1].flags & MEDIA_PAD_FL_SINK)) {
++			sink_pad = &entity->pads[pad->index - 1];
++		} else {
++			for (index = 0; index < (int)entity->num_pads; index++) {
++				if (entity->pads[index].flags & MEDIA_PAD_FL_SINK) {
++					sink_pad = &entity->pads[index];
++					break;
++				}
 +			}
 +		}
 +		if (!sink_pad)
@@ -36,7 +42,7 @@
  #endif
  		if (pad == NULL || !tegra_is_v4l2_subdev(pad->entity))
  			break;
-@@ -2106,8 +2119,6 @@
+@@ -2106,8 +2125,6 @@
  			"vi-output", sd->name);
  		if (len < 0)
  			return -EINVAL;
