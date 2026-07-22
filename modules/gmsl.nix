@@ -166,18 +166,25 @@ in
             [ -n "$entities" ] || { echo "no GMSL channel entities" >&2; exit 1; }
 
             # media-ctl enumerates every channel of both deserializers, but
-            # only the connectors with a camera attached have a live pipeline;
-            # the empty channels (e.g. des_1_* on a single-connector rig) reject
-            # the format. Set what we can and fail only if nothing took it.
+            # only the connectors with a camera attached have a populated
+            # pipeline. A channel whose subdev/pad is absent (empty connector)
+            # fails with ENOENT and is skipped; a channel that exists but
+            # rejects the format is a real error and must not be masked by
+            # another channel succeeding. Require at least one real channel.
             set_count=0
             for e in $entities; do
               case "$e" in
                 ser_*) pad=1 ;;
                 des_*) pad=0 ;;
               esac
-              if ${pkgs.v4l-utils}/bin/media-ctl -d /dev/media0 \
-                   --set-v4l2 "\"$e\":$pad[fmt:$fmt]" 2>/dev/null; then
+              if err=$(${pkgs.v4l-utils}/bin/media-ctl -d /dev/media0 \
+                   --set-v4l2 "\"$e\":$pad[fmt:$fmt]" 2>&1); then
                 set_count=$((set_count + 1))
+              elif [ "''${err#*No such file or directory}" != "$err" ]; then
+                : # channel not populated (empty connector) -- skip
+              else
+                echo "media-ctl rejected $fmt on $e: $err" >&2
+                exit 1
               fi
             done
             [ "$set_count" -gt 0 ] || { echo "no GMSL channel accepted $fmt" >&2; exit 1; }
