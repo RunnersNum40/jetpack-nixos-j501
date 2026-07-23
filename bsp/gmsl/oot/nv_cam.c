@@ -703,13 +703,14 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 	int cam_src,ser_src;
 	struct v4l2_subdev *ser = NULL, *des = NULL;
 	unsigned int ser_sink = 0, des_sink = 0;
+	int ret;
 	struct sensor_mode_properties *mode =
 	 	&s_data->sensor_props.sensor_modes[s_data->mode_prop_idx];
 
 	
 	u16 lane_rate = 0;
 
-	if (s_data->mode < 0 || s_data->mode > priv->num_modes){
+	if (s_data->mode < 0 || s_data->mode >= priv->num_modes){
 		dev_err(dev, "s_data->mode: %d   priv->num_modes: %d\n", s_data->mode, priv->num_modes);
 		return -EINVAL;
 	}
@@ -717,7 +718,7 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 	lane_rate = mode->signal_properties.serdes_pixel_clock.val * 16 / 100000000 / mode->signal_properties.num_lanes;
 
 
-	dev_err(dev, "==Total_lane_rate ,==lane_rate = 0x%x,  serdes_pixel_clock = %lld pixel_clock.val = %lld, mipi_clock.val = %lld\n", 
+	dev_dbg(dev, "lane_rate=0x%x serdes_pixel_clock=%lld pixel_clock=%lld mipi_clock=%lld\n",
 			lane_rate, mode->signal_properties.serdes_pixel_clock.val, 
 			mode->signal_properties.pixel_clock.val, 
 			mode->signal_properties.mipi_clock.val);
@@ -727,6 +728,7 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
          &mode->image_properties.pixel_format, mode->image_properties.pixel_format, mode->image_properties.width, mode->image_properties.height);
 
 	make_subdev_format_from_props(&mode->image_properties,&to_s_fmt);
+	to_s_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
 	cam_src = first_source_pad(&s_data->subdev);
 	/* hop 1: nv_cam(src 0) -> ser(sink ?) */
@@ -739,7 +741,9 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 	if(ser->ops->pad->set_fmt !=NULL){
 		dev_info(dev,"will set  %s fmt",ser->entity.name);
 		to_s_fmt.pad = 1;
-		ser->ops->pad->set_fmt(ser,NULL,&to_s_fmt);
+		ret = ser->ops->pad->set_fmt(ser, NULL, &to_s_fmt);
+		if (ret)
+			return ret;
 	}
 
 	/* hop 2: ser(src ?) -> des(sink ?) */
@@ -748,11 +752,12 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 	if (ser_src >= 0) {
 		des = get_enabled_remote_sd(ser, ser_src, &des_sink);
 		if (des) {
-			printk("des not null media_entity name is %s\r\n",des->entity.name);
 			if(des->ops->pad->set_fmt !=NULL){
 				dev_info(dev,"will set  %s fmt",des->entity.name);
 				to_s_fmt.pad = 0;
-				des->ops->pad->set_fmt(des,NULL,&to_s_fmt);
+				ret = des->ops->pad->set_fmt(des, NULL, &to_s_fmt);
+				if (ret)
+					return ret;
 			}
 		}
 	}
@@ -791,6 +796,7 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 	struct nv_cam *priv = tegracam_get_privdata(tc_dev);
 	struct device *dev = &priv->i2c_client->dev;
 	struct camera_common_data *s_data = tc_dev->s_data;
+	bool powered_on = false;
 	int ret;
 
 	/*
@@ -805,6 +811,7 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 			dev_err(dev, "stream-start power on failed: %d\n", ret);
 			return ret;
 		}
+		powered_on = true;
 		/*
 		 * The ISX031 boots its imaging firmware from module NOR after
 		 * power-up and silently ignores the start command until that
@@ -820,6 +827,8 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 	ret = nv_cam_write_cmd(priv, &priv->start_stream_cmd);
 	if (ret) {
 		dev_err(dev, "Failed to write start stream cmd: %d\n", ret);
+		if (powered_on)
+			nv_cam_power_off(s_data);
 		return ret;
 	}
 
@@ -830,7 +839,8 @@ static int nv_cam_stop_streaming(struct tegracam_device *tc_dev)
 {
 	struct nv_cam *priv = tegracam_get_privdata(tc_dev);
 	struct device *dev = &priv->i2c_client->dev;
-	int ret;
+	int power_ret;
+	int ret = 0;
 
 	if (priv->need_cmd == true) {
 		ret = nv_cam_write_cmd(priv, &priv->stop_stream_cmd);
@@ -839,10 +849,15 @@ static int nv_cam_stop_streaming(struct tegracam_device *tc_dev)
 	}
 
 	/* Mirror of the stream-start power on; stock parks the sensor in
-	 * powerdown after STREAMOFF. */
-	nv_cam_power_off(tc_dev->s_data);
+	 * powerdown after STREAMOFF. Skip when a failed stream start already
+	 * powered the sensor off. */
+	if (tc_dev->s_data->power->state == SWITCH_ON) {
+		power_ret = nv_cam_power_off(tc_dev->s_data);
+		if (!ret)
+			ret = power_ret;
+	}
 
-	return 0;
+	return ret;
 }
 
 static struct camera_common_sensor_ops nv_cam_common_ops = {
@@ -966,6 +981,8 @@ static int nv_cam_parse_dt_cmd(struct nv_cam *priv, struct fwnode_handle *fwnode
 	ret = fwnode_property_count_u32(fwnode, name);
 	if (ret <= 0)
 		return ret;
+	if (ret % 2)
+		return -EINVAL;
 
 	cmd->len = ret;
 
@@ -1005,7 +1022,11 @@ static int _nv_cam_parse_dt_mode_gain_simple(struct nv_cam *priv, struct fwnode_
 	nv_cam_format_gain_prop(name, "regs", prefix);
 	ret = fwnode_property_count_u32(fwnode, name);
 	if (ret <= 0) {
-		dev_err(dev, "Failed to read gain max: %d\n", ret);
+		dev_err(dev, "Failed to count gain regs: %d\n", ret);
+		return -EINVAL;
+	}
+	if (ret > MAX_GAIN_REGS) {
+		dev_err(dev, "Too many gain regs: %d\n", ret);
 		return -EINVAL;
 	}
 
@@ -1237,6 +1258,10 @@ static int nv_cam_parse_dt_chip_ids(struct nv_cam *priv)
 		dev_err(dev, "Failed to reach chip ID regs: %d\n", ret);
 		return ret;
 	}
+	if (ret > MAX_CHIP_ID_REGS) {
+		dev_err(dev, "Too many chip ID regs: %d\n", ret);
+		return -EINVAL;
+	}
 
 	priv->num_chip_id_regs = ret;
 
@@ -1336,7 +1361,6 @@ static int nv_cam_probe(struct i2c_client *client)
 	ret = nv_cam_parse_dt_extra(priv);
 	if (ret)
 		return ret;
-
 
 	regmap_config = sensor_regmap_config;
 	regmap_config.reg_bits = priv->reg_bits;

@@ -223,16 +223,27 @@
 				struct v4l2_subdev_format *format)
  {
 	 struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
- 
+	 struct v4l2_mbus_framefmt *try_fmt;
+
 	 if (format->pad == MAX_SER_SOURCE_PAD) {
 		 format->format.code = MEDIA_BUS_FMT_FIXED;
+		 return 0;
+	 }
+
+	 if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		 try_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
+		 if (!try_fmt)
+			 return -EINVAL;
+		 format->format = *try_fmt;
 		 return 0;
 	 }
  
 	 if (!sd_priv->fmt)
 		 return -EINVAL;
  
-	 format->format.code = sd_priv->fmt->code;
+	 mutex_lock(&sd_priv->priv->lock);
+	 format->format = sd_priv->mbus_fmt;
+	 mutex_unlock(&sd_priv->priv->lock);
  
 	 return 0;
  }
@@ -244,6 +255,9 @@
 	 struct max_ser_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	 struct max_ser_priv *priv = sd_priv->priv;
 	 struct max_ser_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
+	 struct v4l2_mbus_framefmt previous_mbus_fmt;
+	 const struct max_format *previous_fmt;
+	 struct v4l2_mbus_framefmt *try_fmt;
 	 const struct max_format *fmt;
 	 int ret;
  
@@ -253,12 +267,26 @@
 	 fmt = max_format_by_code(format->format.code);
 	 if (!fmt)
 		 return -EINVAL;
- 
-	 sd_priv->fmt = fmt;
- 
+
+	 if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		 try_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
+		 if (!try_fmt)
+			 return -EINVAL;
+		 *try_fmt = format->format;
+		 return 0;
+	 }
+
 	 mutex_lock(&priv->lock);
- 
+
+	 previous_fmt = sd_priv->fmt;
+	 previous_mbus_fmt = sd_priv->mbus_fmt;
+	 sd_priv->fmt = fmt;
+	 sd_priv->mbus_fmt = format->format;
 	 ret = max_ser_update_pipe_dts(priv, pipe);
+	 if (ret) {
+		 sd_priv->fmt = previous_fmt;
+		 sd_priv->mbus_fmt = previous_mbus_fmt;
+	 }
  
 	 mutex_unlock(&priv->lock);
  
@@ -492,7 +520,6 @@
 
 	 }
 	 
-	 printk("will to priv->ops->post_init\r\n");
 	 ret = priv->ops->post_init(priv);
 	 if (ret){
 		return ret;
@@ -659,7 +686,7 @@
 	 if (fwnode_property_read_bool(fwnode, "maxim,embedded-data"))
 		 sd_priv->fmt = max_format_by_dt(MAX_DT_EMB8);
  
-	 pipe = &priv->pipes[val];
+	 pipe = &priv->pipes[sd_priv->pipe_id];
 	 pipe->enabled = true;
  
 	 phy = &priv->phys[pipe->phy_id];
@@ -1004,6 +1031,5 @@
  }
  EXPORT_SYMBOL_GPL(max_ser_change_address);
  
- MODULE_LICENSE("GPL");
- MODULE_IMPORT_NS(I2C_ATR);
- 
+MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(I2C_ATR);

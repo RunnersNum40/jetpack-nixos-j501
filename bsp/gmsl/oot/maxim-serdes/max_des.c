@@ -393,16 +393,27 @@ static int max_des_get_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_format *format)
 {
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *try_fmt;
 
 	if (format->pad == MAX_SER_SINK_PAD) {
 		format->format.code = MEDIA_BUS_FMT_FIXED;
 		return 0;
 	}
 
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		try_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
+		if (!try_fmt)
+			return -EINVAL;
+		format->format = *try_fmt;
+		return 0;
+	}
+
 	if (!sd_priv->fmt)
 		return -EINVAL;
 
-	format->format.code = sd_priv->fmt->code;
+	mutex_lock(&sd_priv->priv->lock);
+	format->format = sd_priv->mbus_fmt;
+	mutex_unlock(&sd_priv->priv->lock);
 
 	return 0;
 }
@@ -426,6 +437,9 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 	struct max_des_subdev_priv *sd_priv = v4l2_get_subdevdata(sd);
 	struct max_des_priv *priv = sd_priv->priv;
 	struct max_des_pipe *pipe = &priv->pipes[sd_priv->pipe_id];
+	struct v4l2_mbus_framefmt previous_mbus_fmt;
+	const struct max_format *previous_fmt;
+	struct v4l2_mbus_framefmt *try_fmt;
 	const struct max_format *fmt;
 	int ret;
 
@@ -436,14 +450,29 @@ static int max_des_set_fmt(struct v4l2_subdev *sd,
 	if (!fmt)
 		return -EINVAL;
 
-	sd_priv->fmt = fmt;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		try_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
+		if (!try_fmt)
+			return -EINVAL;
+		*try_fmt = format->format;
+		return 0;
+	}
 
+	mutex_lock(&priv->lock);
+	previous_fmt = sd_priv->fmt;
+	previous_mbus_fmt = sd_priv->mbus_fmt;
+	sd_priv->fmt = fmt;
+	sd_priv->mbus_fmt = format->format;
 	v4l2_ctrl_s_ctrl_int64(sd_priv->pixel_rate_ctrl,
 			       max_des_get_pixel_rate(sd_priv));
 
-	mutex_lock(&priv->lock);
-
 	ret = max_des_update_pipe_remaps(priv, pipe);
+	if (ret) {
+		sd_priv->fmt = previous_fmt;
+		sd_priv->mbus_fmt = previous_mbus_fmt;
+		v4l2_ctrl_s_ctrl_int64(sd_priv->pixel_rate_ctrl,
+				       max_des_get_pixel_rate(sd_priv));
+	}
 
 	mutex_unlock(&priv->lock);
 
@@ -784,10 +813,6 @@ static int max_des_parse_pipe_dt(struct max_des_priv *priv,
 	}
 
 	pipe->stream_id = val;
-	printk("in max_des_parse_pipe_dt speed_mode=%d pipe->stream_id =%d\r\n",priv->speed_mode,pipe->stream_id);
-	printk("in max_des_parse_dt: pipe=%p, &pipe->stream_id=%p, pipe->stream_id=%d\n",
-		pipe, &pipe->stream_id, pipe->stream_id);
-
 	pipe->dbl8 = fwnode_property_read_bool(fwnode, "maxim,dbl8");
 	pipe->dbl10 = fwnode_property_read_bool(fwnode, "maxim,dbl10");
 	pipe->dbl12 = fwnode_property_read_bool(fwnode, "maxim,dbl12");
@@ -1008,10 +1033,10 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 	if (!ret && val != 0)
 		priv->speed_mode = true;
 
-	ret = device_property_read_u32(priv->dev, "fsync_mfp_index", &val);
+	ret = device_property_read_u32(priv->dev, "fsync_mfp_in", &val);
 	if (ret < 0) {
 		priv->fsync_mfp_x = 2;
-		dev_err(priv->dev, "No fsync_mfp_index info\n");
+		dev_err(priv->dev, "No fsync_mfp_in info\n");
 	} else {
 		priv->fsync_mfp_x = val;
 	}
@@ -1033,10 +1058,6 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		pipe->index = i;
 		pipe->phy_id = i % priv->ops->num_phys;
 		pipe->stream_id = i % MAX_SERDES_STREAMS_NUM;
-		printk("in max_des_parse_dt pipe->stream_id =%d\r\n",pipe->stream_id);
-		printk("in max_des_parse_dt: pipe=%p, &pipe->stream_id=%p, pipe->stream_id=%d\n",
-			pipe, &pipe->stream_id, pipe->stream_id);
-
 		pipe->link_id = i;
 	}
 

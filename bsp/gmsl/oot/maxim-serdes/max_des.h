@@ -42,6 +42,7 @@ struct max_des_subdev_priv {
 
 	struct max_des_priv *priv;
 	const struct max_format *fmt;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	const char *label;
 
 	struct media_pad pads[MAX_DES_PAD_NUM];
