@@ -53,6 +53,11 @@ text = text.replace(
     old_name, 'overlay-name = "Seeed GMSL 2X1X4 ISX031 (J501 Mini)";', 1
 )
 
+# The ISX031 free-runs; drop Seeed's unused external frame-sync generator.
+obc_sync = re.compile(r"\n\t\t\tobc_cam_sync \{.*?\n\t\t\t\};\n", re.DOTALL)
+text, n = obc_sync.subn("", text)
+assert n == 1, f"obc_cam_sync blocks: {n}"
+
 # must_need_cmd
 n = text.count("must_need_cmd = <0x00>;")
 assert n == 8, f"must_need_cmd count: {n}"

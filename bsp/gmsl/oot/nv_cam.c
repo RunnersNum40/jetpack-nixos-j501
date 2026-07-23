@@ -18,7 +18,6 @@
 #include <media/tegra_v4l2_camera.h>
 #include <media/tegracam_core.h>
 
-#include "../../misc/obc_cam_sync.h"
 
 
 
@@ -202,7 +201,6 @@ struct nv_cam {
 	unsigned int			num_modes;
 	bool need_cmd;
 	int fsync_type; /* 0 = none, 1 = external, 2 = internal */
-	cs_param_t fsync_param;
 };
 
 static const struct regmap_config sensor_regmap_config = {
@@ -816,13 +814,6 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 		msleep(3500);
 	}
 
-	if(priv->fsync_type == 1 ){
-		if(use_fsycn_single_device_number == 0){
-			cam_sync_ioctl_for_kernel(CAM_SYNC_START, priv->fsync_param);
-		}
-		use_fsycn_single_device_number++;
-	}
-
 	if(priv->need_cmd != true)
 		return 0;
 
@@ -840,14 +831,6 @@ static int nv_cam_stop_streaming(struct tegracam_device *tc_dev)
 	struct nv_cam *priv = tegracam_get_privdata(tc_dev);
 	struct device *dev = &priv->i2c_client->dev;
 	int ret;
-
-	if(priv->fsync_type == 1 ){
-		use_fsycn_single_device_number--;
-		if(use_fsycn_single_device_number == 0){
-			cam_sync_ioctl_for_kernel(CAM_SYNC_STOP, priv->fsync_param);
-		}
-	}
-
 
 	if (priv->need_cmd == true) {
 		ret = nv_cam_write_cmd(priv, &priv->stop_stream_cmd);
@@ -1353,9 +1336,6 @@ static int nv_cam_probe(struct i2c_client *client)
 	ret = nv_cam_parse_dt_extra(priv);
 	if (ret)
 		return ret;
-
-	priv->fsync_param.mode = MODE_SYNC_OUT;	 
-	priv->fsync_param.fps = 30 * FPS_SCALE;
 
 
 	regmap_config = sensor_regmap_config;
