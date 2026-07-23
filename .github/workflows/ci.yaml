@@ -27,6 +27,8 @@ jobs:
           - flash-j501-agx-orin
           - iso-installer-j501
           - j501-agx-orin
+          - j501-agx-orin-gmsl
+          - gmsl-isx031-dtbo
     steps:
       - uses: actions/checkout@v7
       - uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
@@ -64,3 +66,5 @@ jobs:
           authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Build native kernel + CUDA/L4T closure
         run: nix build .#packages.aarch64-linux.cache-warm-native --print-build-logs
+      - name: Build native GMSL closure
+        run: nix build .#packages.aarch64-linux.j501-agx-orin-gmsl --print-build-logs

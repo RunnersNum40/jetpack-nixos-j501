@@ -12,6 +12,10 @@ Mechanical transform of the upstream DTS:
      add an mfp4 rclkout group (24 MHz sensor MCLK -- Arducam modules derive
      the sensor clock from serializer MFP4).
   5. Drop the copied 1080p/4K modes; the ISX031 emits only mode0 (1920x1536).
+  6. Drop the unused obc_cam_sync frame-sync generator node.
+  7. Add serdes_pix_clk_hz to every mode (r39 sensor_common reads it directly
+     and defaults to 0 when absent, collapsing the CSI lane rate).
+  8. Normalize I2C unit addresses and route the second camera bank to CSI-G.
 """
 
 import re
@@ -89,6 +93,16 @@ n = len(mode_block.findall(text))
 assert n == 16, f"mode1/2 blocks: {n}"
 text = mode_block.sub("", text)
 
+# dtc unit names omit the C-style 0x prefix.
+for old, new, expected in (
+    ("gmsl-deserializer0@0x29", "gmsl-deserializer0@29", 1),
+    ("gmsl-deserializer1@0x29", "gmsl-deserializer1@29", 1),
+    ("gmsl-serializer@0x40", "gmsl-serializer@40", 8),
+    ("ox03a@0x1a", "ox03a@1a", 8),
+):
+    count = text.count(old)
+    assert count == expected, f"{old} count: {count}"
+    text = text.replace(old, new)
 
 # Cameras 4-7 use serial_g (CSI port index 6), not serial_f.
 second_bank_vi = re.compile(
@@ -133,7 +147,7 @@ def add_rclk(m):
         f"{inner}\tmaxim,rclkout-clock = <0>;\n"
         f"{inner}}};\n"
         f"{inner}\n"
-        f"{inner}ser_{m.group('idx')}_mfp0_pwdn {{"
+        f"{inner}ser_{idx}_mfp0_pwdn {{"
     )
 
 
@@ -145,5 +159,5 @@ pins_head = re.compile(
 text, n = pins_head.subn(add_rclk, text)
 assert n == 8, f"rclk insertions: {n}"
 
-open(dst, "w").write(text)
+open(dst, "w").write(text.rstrip() + "\n")
 print(f"adapted -> {dst}")

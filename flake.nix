@@ -178,11 +178,25 @@
         ];
       };
 
+      nixosConfigurations.j501-agx-orin-gmsl = self.nixosConfigurations.j501-agx-orin.extendModules {
+        modules = [ { hardware.j501.gmsl.enable = true; } ];
+      };
+
+      nixosConfigurations.native-j501-agx-orin-gmsl =
+        self.nixosConfigurations.native-j501-agx-orin.extendModules
+          {
+            modules = [ { hardware.j501.gmsl.enable = true; } ];
+          };
+
       packages.x86_64-linux = {
         iso-installer-j501 = self.nixosConfigurations.installer-j501.config.system.build.isoImage;
         flash-j501-agx-orin =
           self.nixosConfigurations.flash-j501-agx-orin.config.system.build.initrdFlashScript;
         j501-agx-orin = self.nixosConfigurations.j501-agx-orin.config.system.build.toplevel;
+        j501-agx-orin-gmsl = self.nixosConfigurations.j501-agx-orin-gmsl.config.system.build.toplevel;
+        gmsl-isx031-dtbo =
+          self.nixosConfigurations.j501-agx-orin-gmsl.pkgs.callPackage ./bsp/gmsl/dtbo.nix
+            { };
       };
 
       nixosConfigurations.native-j501-agx-orin-rt =
@@ -212,6 +226,8 @@
             jp.l4t-3d-core
             jp.l4t-camera
           ];
+          j501-agx-orin-gmsl =
+            self.nixosConfigurations.native-j501-agx-orin-gmsl.config.system.build.toplevel;
         };
 
       apps.x86_64-linux.deploy-j501 = {
@@ -223,6 +239,8 @@
         flash-j501-agx-orin = self.packages.x86_64-linux.flash-j501-agx-orin;
         iso-installer-j501 = self.packages.x86_64-linux.iso-installer-j501;
         j501-agx-orin = self.packages.x86_64-linux.j501-agx-orin;
+        j501-agx-orin-gmsl = self.packages.x86_64-linux.j501-agx-orin-gmsl;
+        gmsl-isx031-dtbo = self.packages.x86_64-linux.gmsl-isx031-dtbo;
       };
 
       formatter = lib.genAttrs [

@@ -1,25 +1,20 @@
-# GMSL DTBO Files
+# GMSL Camera Support
 
-Device tree binary overlays for the Seeed GMSL2 camera expansion board, plus
-the vendored kernel drivers they need (`oot/`).
+Device tree source for the Seeed GMSL2 camera expansion board, plus the
+vendored kernel drivers it needs (`oot/`).
 
 ## Files
 
-| File | Variant | Camera models |
+| File | Topology | Camera models |
 |---|---|---|
-| `tegra234-camera-seeed-gmsl-2x1x4-isx031.dtbo` | 6 Gbps, both FAKRA connectors | ISX031 + MAX9295A modules (e.g. Arducam 3MP ISX031 GMSL2) |
-| `tegra234-camera-seeed-gmsl-1x4-3g.dtbo` | 3 Gbps | SG3S-ISX031C-GMSL2F |
-| `tegra234-camera-seeed-gmsl-1x4-6g.dtbo` | 6 Gbps | SG2-AR0233C, SG2-IMX390C, SG8S-AR0820C |
+| `tegra234-camera-seeed-gmsl-2x1x4-isx031.dts` | 6 Gbps, both FAKRA connectors | ISX031 + MAX9295A modules (e.g. Arducam 3MP ISX031 GMSL2) |
 
-The `.dts` source files alongside are the J501 Mini adaptations used to build
-these DTBOs.
+Nix builds the DTBO from this source when the module is enabled.
 
 ## Provenance
 
-### 2x1x4-isx031
-
 Adapted from `source/hardware/nvidia/t23x/nv-public/overlay/tegra234-seeed-gmsl2x1x4-6g-overlay.dts`
-in [Seeed-Studio/Linux_for_Tegra r36.4.3](https://github.com/Seeed-Studio/Linux_for_Tegra/tree/r36.4.3)
+in [Seeed-Studio/Linux_for_Tegra at `0b8eade`](https://github.com/Seeed-Studio/Linux_for_Tegra/tree/0b8eadeacd3a09ae67e744cac6d525b2663dce54)
 by `adapt-2x1x4-isx031.py` (mechanical, re-runnable). Changes:
 
 - dt-bindings includes replaced with inline stubs (GPIO port values from kernel
@@ -39,22 +34,6 @@ Boot-proven against Seeed's stock JetPack 6.2.1 image on a J501 Mini + AGX Orin
 32GB with two Arducam ISX031 cameras (2026-07-16): both enumerate at probe and
 stream 1920x1536 YUYV free-running with no manual configuration.
 
-### 1x4-3g / 1x4-6g
-
-Adapted from `source/hardware/nvidia/t23x/nv-public/overlay/tegra234-seeed-gmsl1x4-*-overlay.dts`
-in [Seeed-Studio/Linux_for_Tegra r36.5.0](https://github.com/Seeed-Studio/Linux_for_Tegra/tree/r36.5.0).
-
-Changes from the upstream r36.5.0 overlay (which targets the J401 carrier, `JETSON_COMPATIBLE_P3768`):
-
-- `compatible` changed to `"nvidia,p3737-0000+p3701-0004"` (J501 Mini DTB root compatible)
-- GPIO and I2C bus unchanged — the J501 Mini's `cam_i2c` alias also points to `i2c@3180000`
-  and the 22-pin CSI connector uses the same GPIO assignments as the J401
-
-Note: these predate the vendored driver stack, still bind the stock nvidia-oot
-`max96712` register stub, and carry an incorrect inline `TEGRA234_MAIN_GPIO_PORT_AC 28`
-(kernel binding is 20, so hogs on port AC never apply). Re-adapt them on top of
-the maxim-serdes stack before relying on them.
-
 ## Regenerating
 
 ```bash
@@ -72,7 +51,9 @@ fdtoverlay -i ../tegra234-j501x-0000+p3701-0004-recomputer-mini.dtb \
 
 ## Kernel modules (`oot/`)
 
-Vendored from Seeed-Studio/Linux_for_Tegra r36.4.3 `source/nvidia-oot/drivers`
+Vendored from Seeed-Studio/Linux_for_Tegra commit
+[`0b8eade`](https://github.com/Seeed-Studio/Linux_for_Tegra/tree/0b8eadeacd3a09ae67e744cac6d525b2663dce54)
+`source/nvidia-oot/drivers`
 (Seeed has not published r39 BSP sources; their JetPack 7.2 MFI image ships no
 camera modules at all):
 
@@ -85,11 +66,8 @@ camera modules at all):
   `select`, so it cannot be enabled in the tegra kernel config.
 - `nv_cam.c` — generic tegracam YUV sensor subdev (`nv,nv-cam`), driven
   entirely by DT command tables.
-- `obc_cam_sync.c/.h` — nv_cam's frame-sync generator dependency (dormant for
-  free-running cameras).
 
-`modules/gmsl.nix` injects these into the `l4t-oot-modules` build for the
-`2x1x4-isx031` variant.
+`modules/gmsl.nix` injects these into the `nvidia-oot-modules` build.
 
 ### r39 / kernel 6.8 adaptation
 
@@ -115,6 +93,9 @@ parts self-address on the link), and `nv_cam` returns `-EPROBE_DEFER` until
 GMSL link training settles, then runs `power_on` plus a NOR-boot settle at
 stream start (r39's VI never calls `s_power` on a sensor behind a serdes).
 
+The files under `oot/` preserve their GPL-2.0 SPDX identifiers. Their local
+kernel 6.8 and GMSL adaptations are visible in this branch's Git history.
+
 Proven end-to-end on NixOS / JetPack 7 (L4T r39.2, kernel 6.8) with two Arducam
 ISX031 modules: `/dev/video0` streams 1920x1536 YUYV, fully driver-managed.
 
@@ -138,9 +119,8 @@ code. To add a model:
    keep the `rclkout` group only if the module derives its sensor MCLK from a
    serializer MFP (the Arducam ISX031 uses MFP4), and adjust the
    pwdn/reset/fsync MFP assignments.
-3. Add the variant to `variantDtboFile` and `variantSubdevFormat` in
-   `modules/gmsl.nix` (the format string is the media-bus code + resolution
-   the sensor emits, applied to every ser/des channel subdev at boot).
+3. Extend `modules/gmsl.nix` to select the new overlay and media-bus format.
+   The format is applied to every ser/des channel subdev at boot.
 
 If the sensor never streams, check in order: serializer RCLK/MCLK (sensor
 absent from i2c entirely means no clock or held in reset), chip-id read
@@ -157,10 +137,9 @@ default like 102 MHz there points at an unlinked CSI-channel `s_data`
 
 ## Deployment
 
-`hardware.j501.gmsl` is a library module — disabled by default, enabled by the
-downstream system config with the matching `variant`. Enabling it wires the DTBO
-into the flash image via `flashScriptOverrides`, so the overlay reaches the board
-either by a full reflash **or**, on systems with
+`hardware.j501.gmsl` is disabled by default. Enabling it wires the DTBO into the
+flash image via `flashScriptOverrides`, so the overlay reaches the board either
+by a full reflash **or**, on systems with
 `hardware.nvidia-jetpack.firmware.autoUpdate = true`, by the UEFI capsule applied
 on `nixos-rebuild switch` (the device tree updates on the next boot). The kernel
 modules and the `gmsl-subdev-formats` service install with a normal switch, but

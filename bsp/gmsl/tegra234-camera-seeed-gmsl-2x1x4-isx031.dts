@@ -334,7 +334,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 							reg = <0>;
 						};
 					};
-					des0: gmsl-deserializer0@0x29{
+					des0: gmsl-deserializer0@29{
 						#address-cells = <1>;
 						#size-cells = <0>;
 						i2c-alias-pool = <0x41 0x42 0x43 0x44>;
@@ -505,7 +505,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0>;
-								ser_0: gmsl-serializer@0x40 {
+								ser_0: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -527,7 +527,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											reg = <0>;
 											
 											
-											cam_0: ox03a@0x1a {
+											cam_0: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -713,7 +713,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0x01>;
-								ser_1: gmsl-serializer@0x40 {
+								ser_1: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -734,7 +734,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											#size-cells = <0>;
 											reg = <0>;
 											
-											cam_1: ox03a@0x1a {
+											cam_1: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -920,7 +920,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0x02>;
-								ser_2: gmsl-serializer@0x40 {
+								ser_2: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -941,7 +941,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											#size-cells = <0>;
 											reg = <0>;
 											
-											cam_2: ox03a@0x1a {
+											cam_2: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -1127,7 +1127,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0x03>;
-								ser_3: gmsl-serializer@0x40 {
+								ser_3: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -1148,7 +1148,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											#size-cells = <0>;
 											reg = <0>;
 											
-											cam_3: ox03a@0x1a {
+											cam_3: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -1348,7 +1348,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 							reg = <0>;
 						};
 					};
-					des1: gmsl-deserializer1@0x29{
+					des1: gmsl-deserializer1@29{
 						#address-cells = <1>;
 						#size-cells = <0>;
 						i2c-alias-pool = <0x61 0x62 0x63 0x64>;
@@ -1511,7 +1511,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0>;
-								ser_4: gmsl-serializer@0x40 {
+								ser_4: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -1533,7 +1533,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											reg = <0>;
 											
 											
-											cam_4: ox03a@0x1a {
+											cam_4: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -1719,7 +1719,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0x01>;
-								ser_5: gmsl-serializer@0x40 {
+								ser_5: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -1740,7 +1740,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											#size-cells = <0>;
 											reg = <0>;
 											
-											cam_5: ox03a@0x1a {
+											cam_5: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -1926,7 +1926,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0x02>;
-								ser_6: gmsl-serializer@0x40 {
+								ser_6: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -1947,7 +1947,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											#size-cells = <0>;
 											reg = <0>;
 											
-											cam_6: ox03a@0x1a {
+											cam_6: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -2133,7 +2133,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 								#address-cells = <1>;
 								#size-cells = <0>;
 								reg = <0x03>;
-								ser_7: gmsl-serializer@0x40 {
+								ser_7: gmsl-serializer@40 {
 									#address-cells = <1>;
 									#size-cells = <0>;
 									compatible = "maxim,max9295a";
@@ -2154,7 +2154,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 											#size-cells = <0>;
 											reg = <0>;
 											
-											cam_7: ox03a@0x1a {
+											cam_7: ox03a@1a {
 												#address-cells = <1>;
 												#size-cells = <0>;
 												
@@ -2591,7 +2591,3 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 		};
 	};
 };
-
-
-
-

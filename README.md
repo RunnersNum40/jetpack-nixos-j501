@@ -146,6 +146,9 @@ hardware.nvidia-jetpack = {
   carrierBoard = "recomputer-j501-mini";
   majorVersion = "7";
 };
+
+# Arducam ISX031 + MAX9295A cameras on the J501 GMSL2 expansion board.
+hardware.j501.gmsl.enable = true;
 ```
 
 ## Board-specific notes
@@ -164,6 +167,7 @@ for wiring diagrams and per-interface examples.
 | GPI / GPO | `gpiochip0` (libgpiod: `gpioget`/`gpioset`) | yes | 6-pin header defaults to GPO |
 | UART (6-pin) | `/dev/ttyTHS1` | no | shares the GPO header; needs MB1 pinmux change (see below) |
 | RS485 | `/dev/ttyTHS4` | yes | enable transceiver via GPIO before use (Maximum baud rate of 1 Mbps in my testing) |
+| GMSL2 cameras | `/dev/media*`, `/dev/video*` | optional | `hardware.j501.gmsl.enable`; ISX031 + MAX9295A, 1920x1536 YUV422 |
 | I2S | ALSA card `APE` | yes (hardware) | route with `jetson-io` / `amixer` |
 | RTC | `/sys/class/rtc/rtc0` (PMIC), `rtc1` (Tegra) | yes | needs coin-cell battery |
 | M.2 Key E | PCIe + USB | card-dependent | Wi-Fi/BT — see below |
@@ -228,7 +232,9 @@ nix build .#flash-j501-agx-orin --print-build-logs
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Original project code is MIT-licensed; see [LICENSE](LICENSE). Vendored camera
+drivers under `bsp/gmsl/oot/` and the adapted GMSL device tree retain their
+GPL-2.0 licenses.
 
 The Seeed Linux\_for\_Tegra BSP files fetched at build time are governed by
 NVIDIA's BSD-3-Clause license (configuration files) and GPL-2 (kernel device
