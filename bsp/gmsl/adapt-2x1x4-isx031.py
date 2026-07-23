@@ -90,6 +90,16 @@ assert n == 16, f"mode1/2 blocks: {n}"
 text = mode_block.sub("", text)
 
 
+# Cameras 4-7 use serial_g (CSI port index 6), not serial_f.
+second_bank_vi = re.compile(
+    r"(?P<label>vi_in[4-7]: endpoint \{\n"
+    r"\s+vc-id = <[0-3]>;\n"
+    r"\s+)port-index = <0x05>;"
+)
+text, n = second_bank_vi.subn(r"\g<label>port-index = <0x06>;", text)
+assert n == 4, f"second-bank VI ports: {n}"
+
+
 # pinctrl consumer props on each ser node, after its i2c-alias-pool line
 def add_pinctrl(m):
     idx = m.group("idx")
