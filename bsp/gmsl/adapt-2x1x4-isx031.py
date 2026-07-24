@@ -151,7 +151,15 @@ text, n = pins_head.subn(add_rclk, text)
 assert n == 8, f"rclk insertions: {n}"
 
 # frame sync: each des runs its internal 60 Hz FSYNC generator, and every
-# sensor follows the pulse forwarded to its serializer's MFP7
+# sensor follows the pulse forwarded to its serializer's MFP7.
+# The upstream sensor nodes claim MFP7 as reset-gpios, double-booking the
+# FSYNC pin: every nv_cam power transition then drives the sensor's FSYNC
+# input as a GPIO and clobbers the fsync RX arming. The sensor's real reset
+# is MFP0 (pwdn-gpios, 500 ms settle), so drop the bogus reset-gpios.
+fsync_reset = re.compile(r"\n\t+reset-gpios = <&ser_[0-7] 7 GPIO_ACTIVE_HIGH>;")
+text, n = fsync_reset.subn("", text)
+assert n == 8, f"reset-gpios removals: {n}"
+
 fsync_des = re.compile(r"(?P<indent>\t+)fsync_mfp_in = <2>;")
 text, n = fsync_des.subn(
     lambda m: m.group(0) + f"\n{m.group('indent')}maxim,fsync-hz = <60>;", text

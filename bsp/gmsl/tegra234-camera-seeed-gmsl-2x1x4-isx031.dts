@@ -546,7 +546,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_0 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_0 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -754,7 +753,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_1 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_1 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -962,7 +960,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_2 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_2 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -1170,7 +1167,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_3 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_3 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -1557,7 +1553,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_4 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_4 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -1765,7 +1760,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_5 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_5 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -1973,7 +1967,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_6 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_6 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
@@ -2181,7 +2174,6 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												pwdn-gpios = <&ser_7 0 GPIO_ACTIVE_HIGH>;
 												nv,pwdn-sleep-us = <500000>;
 												
-												reset-gpios = <&ser_7 7 GPIO_ACTIVE_HIGH>;
 												
 												physical_w = "15.0";
 												physical_h = "12.5";
