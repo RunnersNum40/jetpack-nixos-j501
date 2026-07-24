@@ -762,33 +762,35 @@ static int nv_cam_set_mode(struct tegracam_device *tc_dev)
 		}
 	}
 
-	switch (priv->fsync_type)
-	{
-	case 0:
-		dev_info(dev,"set no frame sync\r\n");
-		if(ser->ops->core->command !=NULL){
-			ser->ops->core->command(ser,priv->fsync_type,NULL);
-		}
-		break;
-	case 1:
-		dev_info(dev,"set external frame sync\r\n");
-		if(ser->ops->core->command !=NULL){
-			ser->ops->core->command(ser,priv->fsync_type,NULL);
-		}
-		break;
-	case 2:
-		dev_info(dev,"set internal frame sync\r\n");
-		if(ser->ops->core->command !=NULL){
-			ser->ops->core->command(ser,priv->fsync_type,NULL);
-		}
-		break;
-	default:
-		break;
-	}
-    
 out_done:
 
 	return 0;
+}
+
+/*
+ * The ISX031 latches its sync source at NOR boot: booting with FSYNC
+ * pulses live leaves it dead, while pulses arriving mid-stream lock it
+ * to the generator. So the sensor must boot with MFP7 parked, get armed
+ * only after streaming starts, and be disarmed again before the next
+ * power cycle.
+ */
+static void nv_cam_set_fsync(struct nv_cam *priv, int type)
+{
+	struct camera_common_data *s_data = priv->s_data;
+	struct v4l2_subdev *ser;
+	unsigned int ser_sink = 0;
+	int cam_src;
+
+	cam_src = first_source_pad(&s_data->subdev);
+	if (cam_src < 0)
+		return;
+
+	ser = get_enabled_remote_sd(&s_data->subdev, cam_src, &ser_sink);
+	if (!ser || !ser->ops->core->command)
+		return;
+
+	dev_info(&priv->i2c_client->dev, "set fsync mode %d\n", type);
+	ser->ops->core->command(ser, type, NULL);
 }
 
 static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
@@ -821,16 +823,18 @@ static int nv_cam_start_streaming(struct tegracam_device *tc_dev)
 		msleep(3500);
 	}
 
-	if(priv->need_cmd != true)
-		return 0;
-
-	ret = nv_cam_write_cmd(priv, &priv->start_stream_cmd);
-	if (ret) {
-		dev_err(dev, "Failed to write start stream cmd: %d\n", ret);
-		if (powered_on)
-			nv_cam_power_off(s_data);
-		return ret;
+	if (priv->need_cmd) {
+		ret = nv_cam_write_cmd(priv, &priv->start_stream_cmd);
+		if (ret) {
+			dev_err(dev, "Failed to write start stream cmd: %d\n", ret);
+			if (powered_on)
+				nv_cam_power_off(s_data);
+			return ret;
+		}
 	}
+
+	if (priv->fsync_type)
+		nv_cam_set_fsync(priv, priv->fsync_type);
 
 	return 0;
 }
@@ -841,6 +845,9 @@ static int nv_cam_stop_streaming(struct tegracam_device *tc_dev)
 	struct device *dev = &priv->i2c_client->dev;
 	int power_ret;
 	int ret = 0;
+
+	if (priv->fsync_type)
+		nv_cam_set_fsync(priv, 0);
 
 	if (priv->need_cmd == true) {
 		ret = nv_cam_write_cmd(priv, &priv->stop_stream_cmd);
