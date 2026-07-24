@@ -768,17 +768,16 @@ out_done:
 }
 
 /*
- * The ISX031 latches its sync source at NOR boot: booting with FSYNC
- * pulses live leaves it dead, while pulses arriving mid-stream lock it
- * to the generator. So the sensor must boot with MFP7 parked, get armed
- * only after streaming starts, and be disarmed again before the next
- * power cycle.
+ * The ISX031 only streams when its FSYNC pin is low at NOR boot, and it
+ * slews onto pulses that appear mid-stream (62.5 Hz free-run is its
+ * no-sync rate; the generator pulls it to 60.000 Hz). So the sensor
+ * boots with MFP7 parked low, gets armed only after streaming starts,
+ * and is disarmed again before the next power cycle.
  */
 static void nv_cam_set_fsync(struct nv_cam *priv, int type)
 {
 	struct camera_common_data *s_data = priv->s_data;
 	struct v4l2_subdev *ser;
-	unsigned int ser_sink = 0;
 	int cam_src;
 
 	cam_src = first_source_pad(&s_data->subdev);
@@ -787,7 +786,7 @@ static void nv_cam_set_fsync(struct nv_cam *priv, int type)
 		return;
 	}
 
-	ser = get_enabled_remote_sd(&s_data->subdev, cam_src, &ser_sink);
+	ser = get_enabled_remote_sd(&s_data->subdev, cam_src, NULL);
 	if (!ser || !ser->ops->core || !ser->ops->core->command) {
 		dev_warn(&priv->i2c_client->dev, "fsync: no serializer command op\n");
 		return;

@@ -1043,7 +1043,8 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 
 	val = 0;
 	ret = device_property_read_u32(priv->dev, "maxim,fsync-hz", &val);
-	if (!ret && (val > 120 || (val && 25000000 / val > 0xFFFFFF))) {
+	/* 25 MHz refclk / hz must fit the 24-bit FSYNC period regs => >= 2 Hz */
+	if (!ret && (val > 120 || val == 1)) {
 		dev_err(priv->dev, "Invalid maxim,fsync-hz %u\n", val);
 		return -EINVAL;
 	}
