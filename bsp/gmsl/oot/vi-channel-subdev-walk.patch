@@ -1,0 +1,53 @@
+--- a/nvidia-oot/drivers/media/platform/tegra/camera/vi/channel.c
++++ b/nvidia-oot/drivers/media/platform/tegra/camera/vi/channel.c
+@@ -2079,16 +2079,35 @@
+ 
+ 	sd->grp_id = grp_id;
+ 	chan->grp_id = grp_id;
+-	index = pad->index - 1;
+-	while (index >= 0) {
+-		pad = &entity->pads[index];
+-		if (!(pad->flags & MEDIA_PAD_FL_SINK))
++	/*
++	 * Walk upstream by following each entity's sink pad. Keep the historical
++	 * assumption that the sink sits at (source_index - 1) whenever it holds,
++	 * so existing (non-serdes) topologies are unaffected, and fall back to
++	 * the first sink pad only for subdevs that order their source pad first
++	 * (e.g. GMSL serdes channel subdevs with source=0, sink=1), which the old
++	 * assumption truncated before the sensor.
++	 */
++	while (1) {
++		struct media_pad *sink_pad = NULL;
++
++		if (pad->index >= 1 &&
++		    (entity->pads[pad->index - 1].flags & MEDIA_PAD_FL_SINK)) {
++			sink_pad = &entity->pads[pad->index - 1];
++		} else {
++			for (index = 0; index < (int)entity->num_pads; index++) {
++				if (entity->pads[index].flags & MEDIA_PAD_FL_SINK) {
++					sink_pad = &entity->pads[index];
++					break;
++				}
++			}
++		}
++		if (!sink_pad)
+ 			break;
+ 
+ #if defined(NV_MEDIA_ENTITY_REMOTE_PAD_PRESENT) /* Linux 6.0 */
+-		pad = media_entity_remote_pad(pad);
++		pad = media_entity_remote_pad(sink_pad);
+ #else
+-		pad = media_pad_remote_pad_first(pad);
++		pad = media_pad_remote_pad_first(sink_pad);
+ #endif
+ 		if (pad == NULL || !tegra_is_v4l2_subdev(pad->entity))
+ 			break;
+@@ -2106,8 +2125,6 @@
+ 			"vi-output", sd->name);
+ 		if (len < 0)
+ 			return -EINVAL;
+-
+-		index = pad->index - 1;
+ 	}
+ 	spec_bar(); /** for num_sd < MAX_SUBDEVICES */
+ 

@@ -1,0 +1,27 @@
+--- a/nvidia-oot/drivers/media/platform/tegra/camera/sensor_common.c
++++ b/nvidia-oot/drivers/media/platform/tegra/camera/sensor_common.c
+@@ -747,18 +747,20 @@
+ 	/* read parent which is i2c bus */
+ 	err = of_property_read_u32_index(parent, "reg", 1, &value);
+ 	if (err) {
+-		dev_err(dev, "i2c bus regbase unavailable\n");
+-		return err;
++		dev_info(dev, "i2c bus regbase unavailable\n");
++		goto skip_reg_base;
+ 	}
+ 	i2c_sensor->bus.reg_base = value;
+ 
++skip_reg_base:
+ 	err = of_property_read_u32(parent, "clock-frequency", &value);
+ 	if (err) {
+-		dev_err(dev, "bus clock frequency unavailable\n");
+-		return err;
++		dev_info(dev, "bus clock frequency unavailable\n");
++		goto skip_clk_rate;
+ 	}
+ 	i2c_sensor->bus.clk_rate = value;
+ 
++skip_clk_rate:
+ 	of_node_put(parent);
+ 	/*
+ 	 * Read any additional flags to configure I2C for any

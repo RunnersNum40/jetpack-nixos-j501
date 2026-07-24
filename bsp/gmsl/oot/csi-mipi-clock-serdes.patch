@@ -1,0 +1,35 @@
+--- a/nvidia-oot/drivers/media/platform/tegra/camera/nvcsi/csi5_fops.c
++++ b/nvidia-oot/drivers/media/platform/tegra/camera/nvcsi/csi5_fops.c
+@@ -330,8 +330,27 @@
+ 	}
+ 
+-	if (s_data && !chan->pg_mode)
+-		cil_config.mipi_clock_rate = read_mipi_clk_from_dt(chan) / 1000;
+-	else
+-		cil_config.mipi_clock_rate = csi->clk_freq / 1000;
++	{
++		u64 mipi_clk = 0;
++
++		if (s_data && !chan->pg_mode)
++			mipi_clk = read_mipi_clk_from_dt(chan);
++		/*
++		 * GMSL/serdes: the CSI channel s_data is not linked to the
++		 * sensor (its OF endpoint targets the serializer, not the nvcsi
++		 * node), so read_mipi_clk_from_dt() returns 0 and the rate would
++		 * fall back to csi->clk_freq (~102 MHz), making the RCE auto-tune
++		 * T_HS_SETTLE for the wrong lane rate (SOT errors, no frames).
++		 * Recover the real MIPI clock from the VI channel's sensor.
++		 */
++		if (!mipi_clk && tegra_chan && tegra_chan->subdev_on_csi) {
++			struct camera_common_data *vsd =
++				to_camera_common_data(tegra_chan->subdev_on_csi->dev);
++
++			if (vsd && vsd->mode_prop_idx < vsd->sensor_props.num_modes)
++				mipi_clk = vsd->sensor_props.sensor_modes[vsd->mode_prop_idx]
++					.signal_properties.mipi_clock.val;
++		}
++		cil_config.mipi_clock_rate = (mipi_clk ? mipi_clk : csi->clk_freq) / 1000;
++	}
+ 
+ 	dev_dbg(csi->dev, "camera mipi_clock_rate %d\n", cil_config.mipi_clock_rate);
+ 

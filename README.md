@@ -146,6 +146,12 @@ hardware.nvidia-jetpack = {
   carrierBoard = "recomputer-j501-mini";
   majorVersion = "7";
 };
+
+# Arducam ISX031 + MAX9295A cameras on the J501 GMSL2 expansion board.
+hardware.j501.gmsl.enable = true;
+# Optional: frame-lock all cameras on a deserializer to its internal
+# FSYNC generator (0 = free-running, the default; 2-120 Hz otherwise).
+hardware.j501.gmsl.fsyncHz = 60;
 ```
 
 ## Board-specific notes
@@ -164,6 +170,7 @@ for wiring diagrams and per-interface examples.
 | GPI / GPO | `gpiochip0` (libgpiod: `gpioget`/`gpioset`) | yes | 6-pin header defaults to GPO |
 | UART (6-pin) | `/dev/ttyTHS1` | no | shares the GPO header; needs MB1 pinmux change (see below) |
 | RS485 | `/dev/ttyTHS4` | yes | enable transceiver via GPIO before use (Maximum baud rate of 1 Mbps in my testing) |
+| GMSL2 cameras | `/dev/media*`, `/dev/video*` | optional | `hardware.j501.gmsl.enable`; ISX031 + MAX9295A, 1920x1536 YUV422 |
 | I2S | ALSA card `APE` | yes (hardware) | route with `jetson-io` / `amixer` |
 | RTC | `/sys/class/rtc/rtc0` (PMIC), `rtc1` (Tegra) | yes | needs coin-cell battery |
 | M.2 Key E | PCIe + USB | card-dependent | Wi-Fi/BT — see below |
@@ -173,12 +180,6 @@ for wiring diagrams and per-interface examples.
 The flash script flashes QSPI only (`flash_t234_qspi.xml`). The AGX Orin
 module's onboard eMMC is left untouched. An NVMe SSD (M.2 Key M) is the
 intended NixOS rootfs target.
-
-### Ethernet
-
-The J501 Mini has one 10GbE and one 1GbE port. The 10GbE is enabled via
-`ODMDATA=gbe-uphy-config-22,...,gbe0-enable-10g` in the Seeed board config.
-Both ports are available after boot with no additional configuration.
 
 ### CAN
 
@@ -222,13 +223,6 @@ Any card also needs its firmware (`hardware.enableRedistributableFirmware` or a
 targeted `hardware.firmware` entry) and a network stack
 (`networking.networkmanager.enable`).
 
-### Production-fused boards
-
-If your board has been production-fused with Seeed's SBK key, the QSPI
-bootloader chain is signed and cannot be replaced without Seeed's private key.
-In this case you would need a rootfs-only installation path that preserves the
-existing bootloader. This is not yet implemented.
-
 ## Development
 
 ```bash
@@ -241,7 +235,9 @@ nix build .#flash-j501-agx-orin --print-build-logs
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Original project code is MIT-licensed; see [LICENSE](LICENSE). Vendored camera
+drivers under `bsp/gmsl/oot/` and the adapted GMSL device tree retain their
+GPL-2.0 licenses.
 
 The Seeed Linux\_for\_Tegra BSP files fetched at build time are governed by
 NVIDIA's BSD-3-Clause license (configuration files) and GPL-2 (kernel device
