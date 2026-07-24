@@ -200,7 +200,7 @@ struct nv_cam {
 	struct nv_cam_mode		*modes;
 	unsigned int			num_modes;
 	bool need_cmd;
-	int fsync_type; /* 0 = none, 1 = external, 2 = internal */
+	int fsync_type; /* 0 = none, 1 = follow serializer MFP7 */
 };
 
 static const struct regmap_config sensor_regmap_config = {
@@ -782,12 +782,16 @@ static void nv_cam_set_fsync(struct nv_cam *priv, int type)
 	int cam_src;
 
 	cam_src = first_source_pad(&s_data->subdev);
-	if (cam_src < 0)
+	if (cam_src < 0) {
+		dev_warn(&priv->i2c_client->dev, "fsync: no source pad\n");
 		return;
+	}
 
 	ser = get_enabled_remote_sd(&s_data->subdev, cam_src, &ser_sink);
-	if (!ser || !ser->ops->core->command)
+	if (!ser || !ser->ops->core || !ser->ops->core->command) {
+		dev_warn(&priv->i2c_client->dev, "fsync: no serializer command op\n");
 		return;
+	}
 
 	dev_info(&priv->i2c_client->dev, "set fsync mode %d\n", type);
 	ser->ops->core->command(ser, type, NULL);
@@ -1336,8 +1340,8 @@ static int nv_cam_parse_dt_extra(struct nv_cam *priv)
 
 	val = 0;
 	ret = device_property_read_u32(dev, "nv,fsync-type", &val);
-	if (!ret && val > 2) {
-		dev_err(dev, "Invalid nv,fsync-type %u (0=none 1=external 2=internal)\n", val);
+	if (!ret && val > 1) {
+		dev_err(dev, "Invalid nv,fsync-type %u (0=none 1=external)\n", val);
 		return -EINVAL;
 	}
 	priv->fsync_type = val;
