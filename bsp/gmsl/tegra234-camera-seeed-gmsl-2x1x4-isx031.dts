@@ -2402,7 +2402,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 						
 						vi_in4: endpoint {
 							vc-id = <0>;
-							port-index = <0x06>;
+							port-index = <0x05>;
 							bus-width = <0x04>;
 							remote-endpoint = <&csi_4_out>;
 						};
@@ -2413,7 +2413,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 						
 						vi_in5: endpoint {
 							vc-id = <1>;
-							port-index = <0x06>;
+							port-index = <0x05>;
 							bus-width = <0x04>;
 							remote-endpoint = <&csi_5_out>;
 						};
@@ -2424,7 +2424,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 						
 						vi_in6: endpoint {
 							vc-id = <2>;
-							port-index = <0x06>;
+							port-index = <0x05>;
 							bus-width = <0x04>;
 							remote-endpoint = <&csi_6_out>;
 						};
@@ -2435,7 +2435,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 						
 						vi_in7: endpoint {
 							vc-id = <3>;
-							port-index = <0x06>;
+							port-index = <0x05>;
 							bus-width = <0x04>;
 							remote-endpoint = <&csi_7_out>;
 						};
