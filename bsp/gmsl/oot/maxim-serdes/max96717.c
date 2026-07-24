@@ -650,7 +650,9 @@ static int max96717_fsync_set(struct max_ser_priv *ser_priv,int status)
 		else
 			dev_err(priv->dev, "%s  0x2D5 failed, err %d\n", __func__, err);
 	}else{
-		err = max96717_write(priv, 0x2D3, 0x9a);
+		/* Park MFP7 driven low: the ISX031 samples FSYNC at NOR boot
+		 * and only free-runs (streams at all) when the pin is low. */
+		err = max96717_write(priv, 0x2D3, 0x80);
 		if (err == 0)
 			dev_info(priv->dev, "%s 0x2D3 done\n", __func__);
 		else

@@ -701,7 +701,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_0_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -908,7 +908,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_1_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -1115,7 +1115,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_2_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -1322,7 +1322,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_3_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -1708,7 +1708,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_4_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -1915,7 +1915,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_5_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -2122,7 +2122,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_6_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};
@@ -2329,7 +2329,7 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 										ser_7_mfp7_fsync {
 											pins = "mfp7";
 											function = "gpio";
-											output-high;
+											output-low;
 											input-disable;
 										};
 									};

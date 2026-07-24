@@ -160,6 +160,15 @@ fsync_reset = re.compile(r"\n\t+reset-gpios = <&ser_[0-7] 7 GPIO_ACTIVE_HIGH>;")
 text, n = fsync_reset.subn("", text)
 assert n == 8, f"reset-gpios removals: {n}"
 
+# park MFP7 low: the ISX031 samples FSYNC at NOR boot and only free-runs
+# (streams at all) when the pin is low; arming to RX happens mid-stream
+fsync_park = re.compile(
+    r'(ser_[0-7]_mfp7_fsync \{\n(?P<i>\t+)pins = "mfp7";\n'
+    r'(?P=i)function = "gpio";\n(?P=i))output-high;'
+)
+text, n = fsync_park.subn(r"\g<1>output-low;", text)
+assert n == 8, f"mfp7 park rewrites: {n}"
+
 fsync_des = re.compile(r"(?P<indent>\t+)fsync_mfp_in = <2>;")
 text, n = fsync_des.subn(
     lambda m: m.group(0) + f"\n{m.group('indent')}maxim,fsync-hz = <60>;", text
