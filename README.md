@@ -149,6 +149,9 @@ hardware.nvidia-jetpack = {
 
 # Arducam ISX031 + MAX9295A cameras on the J501 GMSL2 expansion board.
 hardware.j501.gmsl.enable = true;
+# Optional: frame-lock all cameras on a deserializer to its internal
+# FSYNC generator (0 = free-running, the default; 2-120 Hz otherwise).
+hardware.j501.gmsl.fsyncHz = 60;
 ```
 
 ## Board-specific notes

@@ -150,8 +150,9 @@ pins_head = re.compile(
 text, n = pins_head.subn(add_rclk, text)
 assert n == 8, f"rclk insertions: {n}"
 
-# frame sync: each des runs its internal 60 Hz FSYNC generator, and every
-# sensor follows the pulse forwarded to its serializer's MFP7.
+# frame sync (optional, cpp-gated): each des can run its internal FSYNC
+# generator, every sensor following the pulse forwarded to its serializer's
+# MFP7.
 # The upstream sensor nodes claim MFP7 as reset-gpios, double-booking the
 # FSYNC pin: every nv_cam power transition then drives the sensor's FSYNC
 # input as a GPIO and clobbers the fsync RX arming. The sensor's real reset
@@ -169,15 +170,24 @@ fsync_park = re.compile(
 text, n = fsync_park.subn(r"\g<1>output-low;", text)
 assert n == 8, f"mfp7 park rewrites: {n}"
 
+# cpp-gated so one DTS serves any deployment: FSYNC_HZ=0 (the default in
+# dtbo.nix) omits both properties and the cameras free-run
 fsync_des = re.compile(r"(?P<indent>\t+)fsync_mfp_in = <2>;")
 text, n = fsync_des.subn(
-    lambda m: m.group(0) + f"\n{m.group('indent')}maxim,fsync-hz = <60>;", text
+    lambda m: (
+        m.group(0)
+        + f"\n#if FSYNC_HZ\n{m.group('indent')}maxim,fsync-hz = <FSYNC_HZ>;\n#endif"
+    ),
+    text,
 )
 assert n == 2, f"fsync-hz insertions: {n}"
 
 fsync_cam = re.compile(r'(?P<indent>\t+)compatible = "nv,nv-cam";')
 text, n = fsync_cam.subn(
-    lambda m: m.group(0) + f"\n{m.group('indent')}nv,fsync-type = <1>;", text
+    lambda m: (
+        m.group(0) + f"\n#if FSYNC_HZ\n{m.group('indent')}nv,fsync-type = <1>;\n#endif"
+    ),
+    text,
 )
 assert n == 8, f"fsync-type insertions: {n}"
 

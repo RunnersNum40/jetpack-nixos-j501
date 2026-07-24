@@ -8,7 +8,7 @@
 let
   cfg = config.hardware.j501.gmsl;
   dtboName = "tegra234-camera-seeed-gmsl-2x1x4-isx031.dtbo";
-  dtbo = pkgs.callPackage ../bsp/gmsl/dtbo.nix { };
+  dtbo = pkgs.callPackage ../bsp/gmsl/dtbo.nix { inherit (cfg) fsyncHz; };
 in
 {
   options.hardware.j501.gmsl = {
@@ -19,9 +19,30 @@ in
       default = true;
       description = "Install v4l-utils for camera diagnostics.";
     };
+
+    fsyncHz = lib.mkOption {
+      type = lib.types.ints.between 0 120;
+      default = 0;
+      example = 60;
+      description = ''
+        Frame-sync rate in Hz, or 0 to leave the cameras free-running.
+        Each deserializer runs its internal FSYNC generator at this rate
+        (25 MHz crystal timebase) and every connected sensor is slaved to
+        it over the GMSL back-channel, frame-locking the cameras that
+        share a deserializer to within microseconds. 1 Hz overflows the
+        hardware period register and is rejected.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
+    assertions = [
+      {
+        assertion = cfg.fsyncHz != 1;
+        message = "hardware.j501.gmsl.fsyncHz: 1 Hz overflows the 24-bit FSYNC period register; use 0 (off) or 2-120.";
+      }
+    ];
+
     hardware.j501.extraOverlayDtbFiles = [ dtboName ];
 
     hardware.nvidia-jetpack.flashScriptOverrides.postPatch = lib.mkAfter ''

@@ -344,7 +344,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 						status = "okay";
 						maxim,speed-mode = <0x01>;// 6G
 						fsync_mfp_in = <2>;
-						maxim,fsync-hz = <60>;
+#if FSYNC_HZ
+						maxim,fsync-hz = <FSYNC_HZ>;
+#endif
 						phy@1 {
 							reg = <0x01>;
 							maxim,alt-mem-map8;
@@ -533,7 +535,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -740,7 +744,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -947,7 +953,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -1154,7 +1162,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -1359,7 +1369,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 						status = "okay";
 						maxim,speed-mode = <0x01>;// 6G
 						fsync_mfp_in = <2>;
-						maxim,fsync-hz = <60>;
+#if FSYNC_HZ
+						maxim,fsync-hz = <FSYNC_HZ>;
+#endif
 						phy@1 {
 							reg = <0x01>;
 							maxim,alt-mem-map8;
@@ -1540,7 +1552,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -1747,7 +1761,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -1954,7 +1970,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;
@@ -2161,7 +2179,9 @@ CAM1_GPI1_PWR_EN A62 PBB.02
 												#size-cells = <0>;
 												
 												compatible = "nv,nv-cam";
+#if FSYNC_HZ
 												nv,fsync-type = <1>;
+#endif
 												reg = <0x1a>;
 												
 												must_need_cmd = <0x01>;

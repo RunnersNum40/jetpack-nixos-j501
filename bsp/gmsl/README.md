@@ -38,9 +38,18 @@ stream 1920x1536 YUYV free-running with no manual configuration.
 
 ```bash
 python3 adapt-2x1x4-isx031.py <upstream-dts> tegra234-camera-seeed-gmsl-2x1x4-isx031.dts
-cpp -nostdinc -undef -x assembler-with-cpp -P tegra234-camera-seeed-gmsl-2x1x4-isx031.dts \
+cpp -nostdinc -undef -x assembler-with-cpp -P -DFSYNC_HZ=0 \
+  tegra234-camera-seeed-gmsl-2x1x4-isx031.dts \
   | dtc -I dts -O dtb -@ -o tegra234-camera-seeed-gmsl-2x1x4-isx031.dtbo
 ```
+
+`FSYNC_HZ` selects frame sync: 0 leaves the cameras free-running; 2-120
+runs each MAX96724's internal FSYNC generator at that rate (25 MHz
+crystal timebase, TX on back-channel GPIO stream 2) and slaves every
+sensor to it via its serializer's MFP7. Cameras sharing a deserializer
+frame-lock to within microseconds; the two deserializers free-run
+relative to each other. `hardware.j501.gmsl.fsyncHz` plumbs this
+through the nix module.
 
 Verify against the base DTB before shipping:
 

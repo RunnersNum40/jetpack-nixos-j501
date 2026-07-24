@@ -179,13 +179,23 @@
       };
 
       nixosConfigurations.j501-agx-orin-gmsl = self.nixosConfigurations.j501-agx-orin.extendModules {
-        modules = [ { hardware.j501.gmsl.enable = true; } ];
+        modules = [
+          {
+            hardware.j501.gmsl.enable = true;
+            hardware.j501.gmsl.fsyncHz = 60;
+          }
+        ];
       };
 
       nixosConfigurations.native-j501-agx-orin-gmsl =
         self.nixosConfigurations.native-j501-agx-orin.extendModules
           {
-            modules = [ { hardware.j501.gmsl.enable = true; } ];
+            modules = [
+              {
+                hardware.j501.gmsl.enable = true;
+                hardware.j501.gmsl.fsyncHz = 60;
+              }
+            ];
           };
 
       packages.x86_64-linux = {
@@ -197,6 +207,9 @@
         gmsl-isx031-dtbo =
           self.nixosConfigurations.j501-agx-orin-gmsl.pkgs.callPackage ./bsp/gmsl/dtbo.nix
             { };
+        gmsl-isx031-dtbo-fsync60 =
+          self.nixosConfigurations.j501-agx-orin-gmsl.pkgs.callPackage ./bsp/gmsl/dtbo.nix
+            { fsyncHz = 60; };
       };
 
       nixosConfigurations.native-j501-agx-orin-rt =
