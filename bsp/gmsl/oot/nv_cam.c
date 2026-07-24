@@ -981,10 +981,16 @@ static int nv_cam_parse_dt_cmd(struct nv_cam *priv, struct fwnode_handle *fwnode
 	ret = fwnode_property_count_u32(fwnode, name);
 	if (ret <= 0)
 		return ret;
-	if (ret % 2)
-		return -EINVAL;
+	if (ret % 2) {
+		/* Vendor DTs encode "no commands" as a lone <0>. */
+		dev_warn(dev, "%s: odd u32 count %d, ignoring trailing element\n",
+			 name, ret);
+		ret--;
+	}
 
 	cmd->len = ret;
+	if (!cmd->len)
+		return 0;
 
 	cmd->data = devm_kcalloc(dev, cmd->len, sizeof(*cmd->data), GFP_KERNEL);
 	if (!cmd->data)
