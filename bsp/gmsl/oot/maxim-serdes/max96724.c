@@ -148,9 +148,9 @@ static int max96724_post_init(struct max_des_priv *des_priv)
         if (!err)
             err = max96724_write(priv, 0x04A7, (period >> 16) & 0xFF);
         /* Manual FS_LINK selection of all links: AUTO_FS_LINKS stalls the
-         * generator entirely while any enabled link is unlocked (bench:
-         * two empty connectors silenced FSYNC for the populated ones).
-         * Selected-but-unlocked links are harmless. */
+         * generator while any enabled link is unlocked, silencing FSYNC
+         * on partially populated connectors; selected-but-unlocked links
+         * are harmless. */
         if (!err)
             err = max96724_write(priv, 0x04AF, 0xCF);
         if (!err)
