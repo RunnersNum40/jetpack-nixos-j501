@@ -1041,6 +1041,14 @@ static int max_des_parse_dt(struct max_des_priv *priv)
 		priv->fsync_mfp_x = val;
 	}
 
+	val = 0;
+	ret = device_property_read_u32(priv->dev, "maxim,fsync-hz", &val);
+	if (!ret && (val > 120 || (val && 25000000 / val > 0xFFFFFF))) {
+		dev_err(priv->dev, "Invalid maxim,fsync-hz %u\n", val);
+		return -EINVAL;
+	}
+	priv->fsync_hz = val;
+
 	val = device_property_read_bool(priv->dev, "maxim,pipe-stream-autoselect");
 	if (val && !priv->ops->supports_pipe_stream_autoselect) {
 		dev_err(priv->dev, "Pipe stream autoselect is not supported\n");

@@ -135,6 +135,7 @@ struct max_des_priv {
 	struct max_des_subdev_priv *sd_privs;
 	bool speed_mode; /* false = 3G, true = 6G */
 	int fsync_mfp_x;
+	u32 fsync_hz; /* 0 = external FSYNC in on fsync_mfp_x; >0 = internal generator */
 };
 
 int max_des_probe(struct max_des_priv *priv);

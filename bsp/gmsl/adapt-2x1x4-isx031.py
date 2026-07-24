@@ -104,6 +104,7 @@ for old, new, expected in (
     assert count == expected, f"{old} count: {count}"
     text = text.replace(old, new)
 
+
 # pinctrl consumer props on each ser node, after its i2c-alias-pool line
 def add_pinctrl(m):
     idx = m.group("idx")
@@ -148,6 +149,20 @@ pins_head = re.compile(
 )
 text, n = pins_head.subn(add_rclk, text)
 assert n == 8, f"rclk insertions: {n}"
+
+# frame sync: each des runs its internal 60 Hz FSYNC generator, and every
+# sensor follows the pulse forwarded to its serializer's MFP7
+fsync_des = re.compile(r"(?P<indent>\t+)fsync_mfp_in = <2>;")
+text, n = fsync_des.subn(
+    lambda m: m.group(0) + f"\n{m.group('indent')}maxim,fsync-hz = <60>;", text
+)
+assert n == 2, f"fsync-hz insertions: {n}"
+
+fsync_cam = re.compile(r'(?P<indent>\t+)compatible = "nv,nv-cam";')
+text, n = fsync_cam.subn(
+    lambda m: m.group(0) + f"\n{m.group('indent')}nv,fsync-type = <1>;", text
+)
+assert n == 8, f"fsync-type insertions: {n}"
 
 open(dst, "w").write(text.rstrip() + "\n")
 print(f"adapted -> {dst}")

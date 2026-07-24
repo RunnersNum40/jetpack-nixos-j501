@@ -130,6 +130,30 @@ static int max96724_post_init(struct max_des_priv *des_priv)
 	struct max96724_priv *priv = des_to_priv(des_priv);
 	int err = 0;
 
+    if (des_priv->fsync_hz) {
+        /*
+         * Internal FSYNC master: FSYNC_0 manual method + generation on;
+         * 24-bit period in 25 MHz crystal cycles (FS_USE_XTAL, no video
+         * PCLK needed); FSYNC_15 GMSL2-type TX to all enabled links;
+         * FSYNC_TX_ID = back-channel GPIO stream 2, the ID every
+         * serializer's MFP7 fsync RX listens on (max96717_fsync_set).
+         */
+        u32 period = DIV_ROUND_CLOSEST(25000000, des_priv->fsync_hz);
+
+        /* 0x4A0 (generation on) written last so the generator never runs
+         * with a half-programmed period/timebase/TX ID. */
+        err = max96724_write(priv, 0x04A5, period & 0xFF);
+        if (!err)
+            err = max96724_write(priv, 0x04A6, (period >> 8) & 0xFF);
+        if (!err)
+            err = max96724_write(priv, 0x04A7, (period >> 16) & 0xFF);
+        if (!err)
+            err = max96724_write(priv, 0x04AF, 0xD0);
+        if (!err)
+            err = max96724_write(priv, 0x04B1, 0x02 << 3);
+        if (!err)
+            err = max96724_write(priv, 0x04A0, 0x00);
+    } else {
     /* Internal FSYNC off, GPIO used for FSYNC, type GMSL2. */
     err = max96724_write(priv, 0x04A0, 0x08);
     err = max96724_write(priv, 0x04AF, 0x9F);
@@ -144,6 +168,7 @@ static int max96724_post_init(struct max_des_priv *des_priv)
     err = max96724_write(priv, 0x337 + priv->des_priv.fsync_mfp_x  * 3 + (priv->des_priv.fsync_mfp_x + 2) / 5, 0x22);
     err = max96724_write(priv, 0x36D + priv->des_priv.fsync_mfp_x  * 3 + (priv->des_priv.fsync_mfp_x  + 4) / 5, 0x22);
     err = max96724_write(priv, 0x3A4 + priv->des_priv.fsync_mfp_x  * 3 + (priv->des_priv.fsync_mfp_x  + 1) / 5, 0x22);
+    }
 
 	if (err == 0)
 		dev_info(priv->dev, "%s done\n", __func__);

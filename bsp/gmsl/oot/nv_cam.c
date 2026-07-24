@@ -1327,6 +1327,14 @@ static int nv_cam_parse_dt_extra(struct nv_cam *priv)
 		dev_info(dev, "Failed to read pwdn sleep us, using default: %d\n", ret);
 	priv->pwdn_sleep_us = val;
 
+	val = 0;
+	ret = device_property_read_u32(dev, "nv,fsync-type", &val);
+	if (!ret && val > 2) {
+		dev_err(dev, "Invalid nv,fsync-type %u (0=none 1=external 2=internal)\n", val);
+		return -EINVAL;
+	}
+	priv->fsync_type = val;
+
 	ret = nv_cam_parse_dt_cmds(priv);
 	if (ret)
 		return ret;
